@@ -1,0 +1,26 @@
+QUESTION 1
+What is an Operating System?
+
+ANSWER
+An Operating System is a program that controls the execution of application programs and acts as an interface between users and hardware. It manages hardware resources, provides a user-friendly interface, and ensures efficient and secure operation of applications.
+
+======================================================================
+
+QUESTION 2
+Explain process management.
+
+ANSWER
+- Process management handles creation, execution, and termination of processes.  
+- Allocates CPU and resources to multiple processes for multitasking.  
+- Ensures efficient system performance through resource management.
+
+======================================================================
+
+QUESTION 3
+What is multiprogramming?
+
+ANSWER
+Multiprogramming is an operating system where multiple programs/processes run in memory at the same time, and the CPU switches between them to optimize resource usage.
+
+======================================================================
+
