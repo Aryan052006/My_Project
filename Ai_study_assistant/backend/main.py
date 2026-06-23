@@ -15,7 +15,10 @@ from embeddings import get_embedding
 from document_store import get_chunks
 from semantic_search import find_top_k_chunks
 from rag import generate_answer
-
+from answer_sheet_service import (
+    generate_answer_sheet
+)
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -187,3 +190,58 @@ def documents():
         "total_documents": len(stats),
         "documents": stats
     }
+
+@app.post(
+    "/generate-answer-sheet"
+)
+async def generate_sheet(
+    file: UploadFile = File(...)
+):
+
+    try:
+
+        file_path = os.path.join(
+            UPLOAD_FOLDER,
+            file.filename
+        )
+
+        with open(
+            file_path,
+            "wb"
+        ) as f:
+
+            content = await file.read()
+
+            f.write(content)
+
+        total_questions = (
+            generate_answer_sheet(
+                file_path
+            )
+        )
+
+        return {
+            "success": True,
+            "questions_found":
+            total_questions,
+            "pdf":
+            "generated_answers.pdf"
+        }
+
+    except Exception as e:
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
+    
+@app.get("/download-answer-sheet")
+def download_answer_sheet():
+
+    pdf_path = "generated_answers.pdf"
+
+    return FileResponse(
+        path=pdf_path,
+        filename="generated_answers.pdf",
+        media_type="application/pdf"
+    )   
