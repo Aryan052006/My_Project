@@ -1,18 +1,22 @@
-from document_store import get_chunks
+from vector_store import collection
 
 
 def get_document_stats():
+    """
+    Returns the number of chunks stored for each PDF.
+    """
 
-    chunks = get_chunks()
+    data = collection.get(
+        include=["metadatas"]
+    )
 
     documents = {}
 
-    for chunk in chunks:
+    for metadata in data["metadatas"]:
 
-        pdf = chunk["source"]
+        pdf = metadata["source"]
 
         if pdf not in documents:
-
             documents[pdf] = 0
 
         documents[pdf] += 1

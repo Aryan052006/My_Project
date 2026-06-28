@@ -1,30 +1,42 @@
 from pydantic import BaseModel
 import ollama
 from fastapi import FastAPI, UploadFile, File
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import time
+
 from pdf_utils import extract_text_from_pdf
-from document_store import (
+from vector_store import (
     add_chunks,
-    clear_store,
     total_chunks
 )
 from document_stats import get_document_stats
 from chunking import create_chunks
 from embeddings import get_embedding
-from document_store import get_chunks
 from semantic_search import find_top_k_chunks
 from rag import generate_answer
-from answer_sheet_service import (
-    generate_answer_sheet
-)
-from fastapi.responses import FileResponse
+from answer_sheet_service import generate_answer_sheet
 
 app = FastAPI()
 
-UPLOAD_FOLDER = "uploads"
+# Retrieval Configuration
+TOP_K = 5
 
+# Minimum similarity threshold
+MIN_SIMILARITY = 0.65
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 class ChatRequest(BaseModel):
     question: str
@@ -44,9 +56,7 @@ def chat(request: ChatRequest):
 
         start_time = time.time()
 
-        chunks = get_chunks()
-
-        if len(chunks) == 0:
+        if total_chunks() == 0:
 
             return {
                 "success": False,
@@ -57,8 +67,7 @@ def chat(request: ChatRequest):
 
         results = find_top_k_chunks(
             request.question,
-            chunks,
-            k=2
+            k=TOP_K
         )
 
         retrieval_end = time.time()
@@ -67,30 +76,72 @@ def chat(request: ChatRequest):
 
             return {
                 "success": True,
-                "answer": "Information not found in study material."
+                "answer": "Information not found in study material.",
+                "sources": []
             }
 
-        # Contexts for RAG
-        contexts = [
-            result["chunk"]["text"]
+        print(
+            f"\nBest Similarity: {results[0]['score']:.4f}"
+        )
+
+        # Keep only relevant chunks
+        filtered_results = [
+
+            result
+
             for result in results
+
+            if result["score"] >= MIN_SIMILARITY
+
         ]
 
-        # Sources for citations
-        sources = []
+        if len(filtered_results) == 0:
 
-        for result in results:
+            return {
+                "success": True,
+                "answer": "Information not found in study material.",
+                "sources": []
+            }
 
-            sources.append(
+        contexts = [
+
+            result["chunk"]["text"]
+
+            for result in filtered_results
+
+        ]
+
+        sources = [
+
             {
-                "pdf": result["chunk"]["source"],
-                "chunk_id": result["chunk"]["id"],
-                "score": round(result["score"], 4),
+
+                "pdf":
+                result["chunk"]["source"],
+
+                "chunk_id":
+                result["chunk"]["id"],
+
+                "similarity":
+                round(
+                    result["score"],
+                    4
+                ),
+
+                "distance":
+                round(
+                    result["distance"],
+                    4
+                ),
+
                 "preview":
                 result["chunk"]["text"][:150]
+
             }
-        )
-            
+
+            for result in filtered_results
+
+        ]
+
         generation_start = time.time()
 
         answer = generate_answer(
@@ -103,34 +154,68 @@ def chat(request: ChatRequest):
         print("\n========== PERFORMANCE ==========")
 
         print(
-            f"Retrieval Time: "
-            f"{retrieval_end - retrieval_start:.2f} sec"
+            f"Retrieval Time: {retrieval_end - retrieval_start:.2f} sec"
         )
 
         print(
-            f"Generation Time: "
-            f"{generation_end - generation_start:.2f} sec"
+            f"Generation Time: {generation_end - generation_start:.2f} sec"
         )
 
         print(
-            f"Total Time: "
-            f"{generation_end - start_time:.2f} sec"
+            f"Total Time: {generation_end - start_time:.2f} sec"
         )
+
+        print("\nRetrieved Chunks")
+
+        for result in filtered_results:
+
+            print("=" * 60)
+
+            print(
+                "Similarity:",
+                round(result["score"], 4)
+            )
+
+            print(
+                "Distance:",
+                round(result["distance"], 4)
+            )
+
+            print(
+                "Source:",
+                result["chunk"]["source"]
+            )
+
+            print(
+                result["chunk"]["text"][:200]
+            )
 
         print("=================================\n")
 
         return {
+
             "success": True,
+
             "answer": answer,
+
             "sources": sources
+
         }
 
     except Exception as e:
 
+        import traceback
+
+        traceback.print_exc()
+
         return {
+
             "success": False,
+
             "error": str(e)
+
         }
+    
     
 @app.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -143,9 +228,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         )
 
         with open(file_path, "wb") as f:
-
             content = await file.read()
-
             f.write(content)
 
         text = extract_text_from_pdf(
@@ -158,21 +241,18 @@ async def upload_pdf(file: UploadFile = File(...)):
         )
 
         for chunk in chunks:
-
             chunk["embedding"] = get_embedding(
                 chunk["text"]
             )
 
-        # clear_store()
-
         add_chunks(chunks)
 
         return {
-        "success": True,
-        "filename": file.filename,
-        "new_chunks": len(chunks),
-        "total_chunks": total_chunks()
-    }
+            "success": True,
+            "filename": file.filename,
+            "new_chunks": len(chunks),
+            "total_chunks": total_chunks()
+        }
 
     except Exception as e:
 
@@ -180,7 +260,8 @@ async def upload_pdf(file: UploadFile = File(...)):
             "success": False,
             "error": str(e)
         }
-    
+
+
 @app.get("/documents")
 def documents():
 
@@ -191,9 +272,8 @@ def documents():
         "documents": stats
     }
 
-@app.post(
-    "/generate-answer-sheet"
-)
+
+@app.post("/generate-answer-sheet")
 async def generate_sheet(
     file: UploadFile = File(...)
 ):
@@ -205,27 +285,18 @@ async def generate_sheet(
             file.filename
         )
 
-        with open(
-            file_path,
-            "wb"
-        ) as f:
-
+        with open(file_path, "wb") as f:
             content = await file.read()
-
             f.write(content)
 
-        total_questions = (
-            generate_answer_sheet(
-                file_path
-            )
+        total_questions = generate_answer_sheet(
+            file_path
         )
 
         return {
             "success": True,
-            "questions_found":
-            total_questions,
-            "pdf":
-            "generated_answers.pdf"
+            "questions_found": total_questions,
+            "pdf": "generated_answers.pdf"
         }
 
     except Exception as e:
@@ -234,7 +305,8 @@ async def generate_sheet(
             "success": False,
             "error": str(e)
         }
-    
+
+
 @app.get("/download-answer-sheet")
 def download_answer_sheet():
 
@@ -244,4 +316,4 @@ def download_answer_sheet():
         path=pdf_path,
         filename="generated_answers.pdf",
         media_type="application/pdf"
-    )   
+    )

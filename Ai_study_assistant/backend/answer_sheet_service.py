@@ -2,6 +2,7 @@ from pdf_utils import extract_text_from_pdf
 from question_extractor import extract_questions
 from answer_generator import answer_question
 from pdf_generator import generate_pdf
+from question_parser import extract_marks
 
 
 def generate_answer_sheet(
@@ -20,8 +21,13 @@ def generate_answer_sheet(
 
     for question in questions:
 
-        answer = answer_question(
+        marks = extract_marks(
             question
+        )
+
+        answer = answer_question(
+            question,
+            marks
         )
 
         answers.append(
@@ -34,6 +40,15 @@ def generate_answer_sheet(
         filename="generated_answers.pdf"
     )
 
+    marks = extract_marks(question)
+
+    print(
+        f"Question: {question}"
+    )
+    print(
+        f"Marks: {marks}"
+    )
     return len(
         questions
     )
+

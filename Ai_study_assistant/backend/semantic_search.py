@@ -1,37 +1,24 @@
-from sklearn.metrics.pairwise import cosine_similarity
 from embeddings import get_embedding
+from vector_store import search
 
 
 def find_top_k_chunks(
-    query,
-    chunks,
-    k=3,
-    threshold=0.65
+    question,
+    k=5
 ):
+    """
+    Generate embedding for the question
+    and retrieve the most relevant chunks
+    from ChromaDB.
+    """
 
-    query_embedding = get_embedding(query)
-
-    scored_chunks = []
-
-    for chunk in chunks:
-
-        similarity = cosine_similarity(
-            [query_embedding],
-            [chunk["embedding"]]
-        )[0][0]
-
-        if similarity >= threshold:
-
-            scored_chunks.append(
-                {
-                    "chunk": chunk,
-                    "score": similarity
-                }
-            )
-
-    scored_chunks.sort(
-        key=lambda x: x["score"],
-        reverse=True
+    query_embedding = get_embedding(
+        question
     )
 
-    return scored_chunks[:k]
+    results = search(
+        query_embedding=query_embedding,
+        k=k
+    )
+
+    return results

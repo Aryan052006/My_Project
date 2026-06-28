@@ -1,20 +1,35 @@
-from document_store import get_chunks
 from semantic_search import find_top_k_chunks
 from rag import generate_answer
+from vector_store import total_chunks
 
 
-def answer_question(question):
+def answer_question(
+    question,
+    marks=5
+):
+    """
+    Generates an answer for a single question
+    using ChromaDB + RAG.
+    """
 
-    chunks = get_chunks()
-    print("Total Chunks:", len(chunks))
+    if total_chunks() == 0:
+
+        return (
+            "No study material has been uploaded."
+        )
+
+    # Retrieve more context for long answers
+    if marks <= 5:
+        k = 2
+    elif marks <= 10:
+        k = 5
+    else:
+        k = 7
+
     results = find_top_k_chunks(
         question,
-        chunks,
-        k=2
+        k=k
     )
-
-    # print("\nQUESTION:", question)
-    # print("TOP SCORE:", results[0]["score"])
 
     if len(results) == 0:
 
@@ -22,17 +37,33 @@ def answer_question(question):
             "Information not found in study material."
         )
 
-    contexts = [
+    # Reject low-confidence retrieval
+    if results[0]["score"] < 0.65:
 
-        result["chunk"]["text"]
+        return (
+            "Information not found in study material."
+        )
 
-        for result in results
-    ]
+    contexts = []
+
+    for result in results:
+
+        if result["score"] >= 0.65:
+
+            contexts.append(
+                result["chunk"]["text"]
+            )
+
+    if len(contexts) == 0:
+
+        return (
+            "Information not found in study material."
+        )
 
     answer = generate_answer(
-        question,
-        contexts
+        question=question,
+        contexts=contexts,
+        marks=marks
     )
 
-    
     return answer
