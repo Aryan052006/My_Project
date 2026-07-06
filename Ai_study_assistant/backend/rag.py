@@ -4,6 +4,7 @@ import ollama
 def generate_answer(
     question,
     contexts,
+    history=None,
     marks=5
 ):
 
@@ -80,40 +81,67 @@ Minimum 350 words.
 
         num_predict = 600
 
+    if history is None:
+
+        history = []
+
+    history_text = ""
+
+    for message in history:
+
+        if message["role"] == "user":
+
+            history_text += (
+                f"User: {message['content']}\n"
+            )
+
+        else:
+
+            history_text += (
+                f"Assistant: {message['content']}\n"
+            )
     prompt = f"""
 You are an AI Study Assistant.
 
-You MUST answer ONLY from the study material.
+You MUST answer ONLY from the provided study material.
 
-IMPORTANT RULES
+Conversation History:
 
-1. NEVER use your own knowledge.
-
-2. NEVER guess.
-
-3. NEVER complete missing information.
-
-4. If the study material does not contain enough information to answer the question, reply EXACTLY with:
-
-Information not found in study material.
-
-5. Do not mention the study material.
-
-6. Do not say "According to the context".
-
-7. Give only the final answer.
-
-{answer_style}
+{history_text}
 
 Study Material:
 
 {context_text}
 
-Question:
+Current Question:
 
 {question}
-"""
 
+{answer_style}
+
+IMPORTANT RULES
+
+1. NEVER use outside knowledge.
+
+2. NEVER guess.
+
+3. If the study material does not contain the answer, reply EXACTLY:
+
+Information not found in study material.
+
+4. Use the conversation history only to understand references like:
+   - it
+   - they
+   - this concept
+   - previous topic
+
+5. NEVER answer from conversation history alone.
+
+6. Always use the study material as the source of truth.
+
+7. Give only the final answer.
+
+"""
     response = ollama.chat(
 
         model="qwen3:1.7b",

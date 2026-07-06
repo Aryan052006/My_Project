@@ -1,7 +1,8 @@
 from pdf_utils import extract_text_from_pdf
 from chunking import create_chunks
 from embeddings import get_embedding
-from semantic_search import find_best_chunk
+from vector_store import add_chunks
+from semantic_search import find_top_k_chunks
 from rag import generate_answer
 
 
@@ -17,19 +18,22 @@ for chunk in chunks:
         chunk["text"]
     )
 
+add_chunks(chunks)
+
 question = "Define Stock Exchange"
 
-best_chunk, score = find_best_chunk(
+results = find_top_k_chunks(
     question,
-    chunks
+    k=1
 )
 
-if best_chunk is None:
+if not results:
 
     print("No relevant information found.")
-    print("Score:", score)
 
 else:
+
+    best_chunk = results[0]["chunk"]
 
     answer = generate_answer(
         question,

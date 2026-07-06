@@ -9,14 +9,22 @@ import time
 from pdf_utils import extract_text_from_pdf
 from vector_store import (
     add_chunks,
-    total_chunks
+    total_chunks,
+    get_document_stats,
+    document_exists,
+    delete_document
 )
-from document_stats import get_document_stats
 from chunking import create_chunks
 from embeddings import get_embedding
 from semantic_search import find_top_k_chunks
 from rag import generate_answer
 from answer_sheet_service import generate_answer_sheet
+from chat_memory import (
+    add_message,
+    get_history,
+    clear_history
+)
+from query_rewriter import rewrite_question
 
 app = FastAPI()
 
@@ -24,7 +32,7 @@ app = FastAPI()
 TOP_K = 5
 
 # Minimum similarity threshold
-MIN_SIMILARITY = 0.65
+MIN_SIMILARITY = 0.45
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,6 +48,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 class ChatRequest(BaseModel):
     question: str
+    session_id: str = "default"
 
 
 @app.get("/")
@@ -56,6 +65,8 @@ def chat(request: ChatRequest):
 
         start_time = time.time()
 
+        session_id = request.session_id
+
         if total_chunks() == 0:
 
             return {
@@ -63,14 +74,47 @@ def chat(request: ChatRequest):
                 "message": "No PDF uploaded."
             }
 
+        # =============================
+        # Conversation History
+        # =============================
+
+        history = get_history(session_id)
+
+        rewritten_question = rewrite_question(
+            request.question,
+            history
+        )
+
+        print("\n==============================")
+        print("Original Question:")
+        print(request.question)
+
+        print("\nRewritten Question:")
+        print(rewritten_question)
+        print("==============================")
+
+        # Save current user message AFTER rewriting
+        add_message(
+            session_id,
+            "user",
+            request.question
+        )
+
+        # =============================
+        # Retrieval
+        # =============================
+
         retrieval_start = time.time()
 
         results = find_top_k_chunks(
-            request.question,
+            rewritten_question,
             k=TOP_K
         )
 
         retrieval_end = time.time()
+
+        print("\nRetrieved using:")
+        print(rewritten_question)
 
         if len(results) == 0:
 
@@ -84,7 +128,6 @@ def chat(request: ChatRequest):
             f"\nBest Similarity: {results[0]['score']:.4f}"
         )
 
-        # Keep only relevant chunks
         filtered_results = [
 
             result
@@ -102,6 +145,10 @@ def chat(request: ChatRequest):
                 "answer": "Information not found in study material.",
                 "sources": []
             }
+
+        # =============================
+        # Build Context
+        # =============================
 
         contexts = [
 
@@ -142,14 +189,33 @@ def chat(request: ChatRequest):
 
         ]
 
+        # Get updated history (includes current user message)
+        history = get_history(session_id)
+
+        # =============================
+        # Generate Answer
+        # =============================
+
         generation_start = time.time()
 
         answer = generate_answer(
-            request.question,
-            contexts
+            question=request.question,
+            contexts=contexts,
+            history=history
         )
 
         generation_end = time.time()
+
+        # Save assistant reply
+        add_message(
+            session_id,
+            "assistant",
+            answer
+        )
+
+        # =============================
+        # Logs
+        # =============================
 
         print("\n========== PERFORMANCE ==========")
 
@@ -216,62 +282,99 @@ def chat(request: ChatRequest):
 
         }
     
-    
 @app.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
 
+    print("========== UPLOAD START ==========")
+
     try:
+
+        print("1")
 
         file_path = os.path.join(
             UPLOAD_FOLDER,
             file.filename
         )
 
+        print("2")
+
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
 
-        text = extract_text_from_pdf(
-            file_path
-        )
+        print("3")
+
+        text = extract_text_from_pdf(file_path)
+
+        print("4")
 
         chunks = create_chunks(
             text,
             source=file.filename
         )
 
+        print(f"Chunks created: {len(chunks)}")
+
+        print("5")
+
         for chunk in chunks:
             chunk["embedding"] = get_embedding(
                 chunk["text"]
             )
 
+        print("6")
+
         add_chunks(chunks)
 
-        return {
+        print("7")
+
+        response = {
             "success": True,
             "filename": file.filename,
             "new_chunks": len(chunks),
             "total_chunks": total_chunks()
         }
 
+        print(response)
+        print("========== UPLOAD END ==========")
+
+        return response
+
     except Exception as e:
+
+        import traceback
+        traceback.print_exc()
 
         return {
             "success": False,
             "error": str(e)
         }
 
-
 @app.get("/documents")
 def documents():
 
     stats = get_document_stats()
 
-    return {
-        "total_documents": len(stats),
-        "documents": stats
-    }
+    documents = []
 
+    for name, chunks in stats.items():
+
+        documents.append(
+            {
+                "name": name,
+                "chunks": chunks
+            }
+        )
+
+    return {
+
+        "success": True,
+
+        "total_documents": len(documents),
+
+        "documents": documents
+
+    }
 
 @app.post("/generate-answer-sheet")
 async def generate_sheet(
@@ -317,3 +420,48 @@ def download_answer_sheet():
         filename="generated_answers.pdf",
         media_type="application/pdf"
     )
+
+@app.delete(
+    "/documents/{filename}"
+)
+def remove_document(
+    filename: str
+):
+
+    deleted = delete_document(
+        filename
+    )
+
+    if not deleted:
+
+        return {
+            "success": False,
+            "message": "Document not found."
+        }
+
+    return {
+        "success": True,
+        "deleted": filename
+    }
+
+@app.post("/clear-chat")
+def clear_chat(session_id: str = "default"):
+
+    clear_history(
+        session_id
+    )
+
+    return {
+        "success": True,
+        "message": "Chat cleared."
+    }
+
+@app.get("/sessions")
+def get_sessions():
+    from chat_memory import get_all_sessions
+    return {"sessions": get_all_sessions()}
+
+@app.get("/chat/history")
+def get_chat_history(session_id: str = "default"):
+    from chat_memory import get_all_history
+    return {"history": get_all_history(session_id)}

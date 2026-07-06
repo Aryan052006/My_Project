@@ -2,7 +2,7 @@ QUESTION 1
 What is an Operating System? [2]
 
 ANSWER
-An operating system is a program that manages computer hardware and software resources, acting as an interface between users and the computer. It controls hardware, manages memory, and ensures efficient execution of applications.
+Information not found in study material.
 
 ======================================================================
 
@@ -10,11 +10,7 @@ QUESTION 2
 Explain process management. [3]
 
 ANSWER
-- Process management involves the planning, execution, and control of processes in an operating system.  
-- It handles the creation, execution, and termination of processes.  
-- Processes are allocated CPU and other resources to ensure smooth multitasking.  
-- It ensures efficient system performance through resource allocation and scheduling.  
-- Process management is essential for enabling multiple tasks to run simultaneously.
+Information not found in study material.
 
 ======================================================================
 
@@ -22,22 +18,7 @@ QUESTION 3
 What is multiprogramming? [10]
 
 ANSWER
-**Introduction**  
-Multiprogramming is a fundamental concept in operating systems that allows multiple programs to be loaded into memory simultaneously. The operating system manages the execution of these programs by switching between them, ensuring that the CPU is utilized efficiently. This approach enhances system performance by keeping the CPU busy even when one program is waiting for I/O operations, such as disk access or user input.
-
-**Detailed Explanation**  
-In a multiprogramming operating system, the CPU is not idle during I/O waits. Instead, the system switches the CPU to another program that is waiting for input or output. This switching is managed by the operating system's scheduler, which selects the next program to execute based on factors like priority, waiting time, and resource availability. The operating system also manages memory allocation and process scheduling to ensure that all programs run smoothly and efficiently.
-
-**Advantages / Features**  
-The multiprogramming operating system offers several advantages:  
-1. **Better CPU Utilization**: The CPU is continuously utilized by switching between programs, reducing idle time.  
-2. **Improved Throughput**: Multiple programs can run concurrently, increasing the amount of work done per unit time.  
-3. **Efficient Resource Use**: CPU, memory, and I/O devices are shared among processes, leading to better resource utilization.  
-4. **Enhanced System Performance**: The system can handle more tasks simultaneously, improving overall performance and user experience.  
-5. **Support for Multiple Users**: The operating system can support multiple users by allowing them to run different programs concurrently.  
-
-**Conclusion**  
-Multiprogramming is a key feature of modern operating systems, enabling efficient resource utilization and improved system performance. It allows multiple programs to run simultaneously, ensuring that the CPU is always busy and that the system can handle a large number of tasks. The structured approach of multiprogramming, combined with effective scheduling and memory management, makes it a vital component of operating system design.
+Information not found in study material.
 
 ======================================================================
 

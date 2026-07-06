@@ -1,6 +1,7 @@
 from pdf_utils import extract_text_from_pdf
 from chunking import create_chunks
 from embeddings import get_embedding
+from vector_store import add_chunks
 from semantic_search import find_top_k_chunks
 from rag import generate_answer
 
@@ -17,13 +18,14 @@ for chunk in chunks:
         chunk["text"]
     )
 
+add_chunks(chunks)
+
 question = (
     "Explain the functions of a Stock Exchange"
 )
 
 results = find_top_k_chunks(
     question,
-    chunks,
     k=3
 )
 
