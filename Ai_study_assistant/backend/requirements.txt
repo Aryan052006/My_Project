@@ -7,4 +7,4 @@ pydantic
 python-docx
 groq
 python-dotenv
-sentence-transformers
+fastembed

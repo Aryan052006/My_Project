@@ -1,7 +1,7 @@
 from embeddings import get_embedding
 from vector_store import search, get_all_chunks
 from rank_bm25 import BM25Okapi
-import ollama
+
 
 
 def find_top_k_chunks(
@@ -90,14 +90,9 @@ Query: {main_query}
 Document: {candidate['chunk']['text']}"""
 
         try:
-            res = ollama.chat(
-                model="qwen3:1.7b",
-                messages=[{"role": "user", "content": prompt}],
-                think=False,
-                options={"temperature": 0.0}
-            )
-            content = res.message.content.strip().replace("</think>", "").strip()
-            score_match = "".join(filter(str.isdigit, content))
+            from llm_client import get_chat_completion
+            content = get_chat_completion(prompt, temperature=0.0, max_tokens=10)
+            score_match = "".join(filter(str.isdigit, content.strip()))
             rerank_score = int(score_match) if score_match else 0
         except Exception as e:
             print(f"Reranking error: {e}")
