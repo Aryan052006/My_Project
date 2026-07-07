@@ -27,7 +27,6 @@ def add_chunks(chunks, user_id="default"):
                     "user_id": user_id
                 }]
             )
-    )
 
         except Exception as e:
             print(f"Failed to add {chunk_id}: {e}")
