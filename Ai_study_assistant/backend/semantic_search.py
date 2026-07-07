@@ -6,7 +6,8 @@ from rank_bm25 import BM25Okapi
 
 def find_top_k_chunks(
     queries,
-    k=5
+    k=5,
+    user_id="default"
 ):
     """
     Hybrid Search (Semantic + BM25) + Query Expansion + AI Re-ranking.
@@ -23,7 +24,7 @@ def find_top_k_chunks(
     for query in queries:
         query_embedding = get_embedding(query)
         # Fetch a wider net for hybrid ranking
-        results = search(query_embedding=query_embedding, k=15)
+        results = search(query_embedding=query_embedding, k=15, user_id=user_id)
         for rank, res in enumerate(results):
             chunk_id = res['chunk']['id']
             # RRF (Reciprocal Rank Fusion) Score
@@ -34,7 +35,7 @@ def find_top_k_chunks(
                 all_semantic_results[chunk_id]["semantic_score"] += score
 
     # 2. BM25 Keyword Search
-    all_data = get_all_chunks()
+    all_data = get_all_chunks(user_id=user_id)
     if all_data and len(all_data["documents"]) > 0:
         tokenized_corpus = [doc.lower().split(" ") for doc in all_data["documents"]]
         bm25 = BM25Okapi(tokenized_corpus)

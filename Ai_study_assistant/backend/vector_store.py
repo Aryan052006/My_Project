@@ -13,21 +13,20 @@ collection = client.get_or_create_collection(
 # Add Chunks
 # ===========================
 
-def add_chunks(chunks):
-
+def add_chunks(chunks, user_id="default"):
     for chunk in chunks:
-
-        chunk_id = f"{chunk['source']}_{chunk['id']}"
-
+        chunk_id = f"{user_id}_{chunk['source']}_{chunk['id']}"
         try:
-         collection.add(
-        ids=[chunk_id],
-        documents=[chunk["text"]],
-        embeddings=[chunk["embedding"]],
-        metadatas=[{
-            "source": chunk["source"],
-            "chunk_id": chunk["id"]
-        }]
+            collection.add(
+                ids=[chunk_id],
+                documents=[chunk["text"]],
+                embeddings=[chunk["embedding"]],
+                metadatas=[{
+                    "source": chunk["source"],
+                    "chunk_id": chunk["id"],
+                    "user_id": user_id
+                }]
+            )
     )
 
         except Exception as e:
@@ -40,17 +39,13 @@ def add_chunks(chunks):
 def search(
     query_embedding,
     k=5,
-    threshold=1.1  # Set default distance threshold higher so valid cosine similarities > 0.45 aren't dropped
+    threshold=1.1,
+    user_id="default"
 ):
-
     results = collection.query(
- 
-        query_embeddings=[
-            query_embedding
-        ],
-
-        n_results=k
-
+        query_embeddings=[query_embedding],
+        n_results=k,
+        where={"user_id": user_id}
     )
 
     formatted_results = []
@@ -130,20 +125,22 @@ def search(
 # Total Chunks
 # ===========================
 
-def total_chunks():
-
-    return collection.count()
+def total_chunks(user_id="default"):
+    data = collection.get(where={"user_id": user_id}, include=[])
+    return len(data["ids"])
 
 
 # ===========================
 # Check if PDF Exists
 # ===========================
 
-def document_exists(filename):
-
+def document_exists(filename, user_id="default"):
     data = collection.get(
         where={
-            "source": filename
+            "$and": [
+                {"source": filename},
+                {"user_id": user_id}
+            ]
         }
     )
 
@@ -154,11 +151,13 @@ def document_exists(filename):
 # Delete One PDF
 # ===========================
 
-def delete_document(filename):
-
+def delete_document(filename, user_id="default"):
     data = collection.get(
         where={
-            "source": filename
+            "$and": [
+                {"source": filename},
+                {"user_id": user_id}
+            ]
         }
     )
 
@@ -179,10 +178,13 @@ def delete_document(filename):
 # Rename Document
 # ===========================
 
-def rename_document(old_filename, new_filename):
+def rename_document(old_filename, new_filename, user_id="default"):
     data = collection.get(
         where={
-            "source": old_filename
+            "$and": [
+                {"source": old_filename},
+                {"user_id": user_id}
+            ]
         }
     )
     
@@ -194,7 +196,8 @@ def rename_document(old_filename, new_filename):
     for metadata in data["metadatas"]:
         new_metadatas.append({
             "source": new_filename,
-            "chunk_id": metadata["chunk_id"]
+            "chunk_id": metadata["chunk_id"],
+            "user_id": user_id
         })
         
     collection.update(
@@ -208,9 +211,9 @@ def rename_document(old_filename, new_filename):
 # Document Statistics
 # ===========================
 
-def get_document_stats():
-
+def get_document_stats(user_id="default"):
     data = collection.get(
+        where={"user_id": user_id},
         include=["metadatas"]
     )
 
@@ -233,15 +236,9 @@ def get_document_stats():
 # Clear Database
 # ===========================
 
-def clear_database():
-
-    global collection
-
+def clear_database(user_id="default"):
     try:
-
-        client.delete_collection(
-            "study_material"
-        )
+        collection.delete(where={"user_id": user_id})
 
     except Exception:
         pass
@@ -254,9 +251,9 @@ def clear_database():
 # Fetch All Chunks (for BM25)
 # ===========================
 
-def get_all_chunks():
-
+def get_all_chunks(user_id="default"):
     data = collection.get(
+        where={"user_id": user_id},
         include=["documents", "metadatas"]
     )
     

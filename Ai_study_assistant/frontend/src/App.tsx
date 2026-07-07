@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignIn, useAuth } from "@clerk/clerk-react";
 
 import Layout from "./components/Layout";
 
@@ -11,10 +11,23 @@ import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import AITutor from "./pages/AITutor";
 import Revision from "./pages/Revision";
+import { setupAuthInterceptor } from "./services/api";
+import { useEffect } from "react";
+
+function AuthInterceptor() {
+  const { getToken, userId } = useAuth();
+  
+  useEffect(() => {
+    setupAuthInterceptor(getToken, userId);
+  }, [getToken, userId]);
+
+  return null;
+}
 
 function App() {
   return (
     <BrowserRouter>
+      <AuthInterceptor />
       {/* View shown when the user is NOT logged in */}
       <SignedOut>
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#050816]">

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Header
 from fastapi.responses import FileResponse, StreamingResponse
 import json
 from fastapi.middleware.cors import CORSMiddleware
@@ -63,15 +63,15 @@ def home():
 
 
 @app.post("/chat")
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, x_user_id: str = Header("default")):
 
     try:
 
         start_time = time.time()
 
-        session_id = request.session_id
+        session_id = f"{x_user_id}_{request.session_id}"
 
-        if total_chunks() == 0:
+        if total_chunks(user_id=x_user_id) == 0:
 
             return {
                 "success": False,
@@ -115,7 +115,8 @@ def chat(request: ChatRequest):
 
         results = find_top_k_chunks(
             rewritten_question,
-            k=settings.get("top_k", 5)
+            k=settings.get("top_k", 5),
+            user_id=x_user_id
         )
 
         retrieval_end = time.time()
@@ -288,10 +289,10 @@ def chat(request: ChatRequest):
         }
         
 @app.post("/chat-stream")
-async def chat_stream_endpoint(request: ChatRequest):
-    session_id = request.session_id
+async def chat_stream_endpoint(request: ChatRequest, x_user_id: str = Header("default")):
+    session_id = f"{x_user_id}_{request.session_id}"
 
-    if total_chunks() == 0:
+    if total_chunks(user_id=x_user_id) == 0:
         async def err_gen():
             yield json.dumps({"type": "error", "message": "No PDF uploaded."}) + "\n"
         return StreamingResponse(err_gen(), media_type="application/x-ndjson")
@@ -303,7 +304,7 @@ async def chat_stream_endpoint(request: ChatRequest):
 
     settings = load_settings()
     retrieval_start = time.time()
-    results = find_top_k_chunks(rewritten_question, k=settings.get("top_k", 5))
+    results = find_top_k_chunks(rewritten_question, k=settings.get("top_k", 5), user_id=x_user_id)
     retrieval_end = time.time()
     log_performance('retrieval', (retrieval_end - retrieval_start) * 1000)
 
@@ -366,7 +367,7 @@ async def chat_stream_endpoint(request: ChatRequest):
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
 @app.post("/upload-pdf")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(file: UploadFile = File(...), x_user_id: str = Header("default")):
 
     print("========== UPLOAD START ==========")
 
@@ -376,7 +377,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         file_path = os.path.join(
             UPLOAD_FOLDER,
-            file.filename
+            f"{x_user_id}_{file.filename}"
         )
 
         print("2")
@@ -407,7 +408,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         print("6")
 
-        add_chunks(chunks)
+        add_chunks(chunks, user_id=x_user_id)
 
         print("7")
 
@@ -415,7 +416,7 @@ async def upload_pdf(file: UploadFile = File(...)):
             "success": True,
             "filename": file.filename,
             "new_chunks": len(chunks),
-            "total_chunks": total_chunks()
+            "total_chunks": total_chunks(user_id=x_user_id)
         }
 
         print(response)
@@ -434,9 +435,9 @@ async def upload_pdf(file: UploadFile = File(...)):
         }
 
 @app.get("/documents")
-def documents():
+def documents(x_user_id: str = Header("default")):
 
-    stats = get_document_stats()
+    stats = get_document_stats(user_id=x_user_id)
 
     documents = []
 
@@ -462,9 +463,9 @@ def documents():
 from question_extractor import extract_questions
 
 @app.post("/extract-questions")
-async def extract_questions_endpoint(file: UploadFile = File(...)):
+async def extract_questions_endpoint(file: UploadFile = File(...), x_user_id: str = Header("default")):
     try:
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        file_path = os.path.join(UPLOAD_FOLDER, f"{x_user_id}_{file.filename}")
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
@@ -595,11 +596,12 @@ def download_file(file: str):
     "/documents/{filename}"
 )
 def remove_document(
-    filename: str
+    filename: str,
+    x_user_id: str = Header("default")
 ):
 
     deleted = delete_document(
-        filename
+        filename, user_id=x_user_id
     )
 
     if not deleted:
@@ -618,46 +620,46 @@ class RenameRequest(BaseModel):
     new_name: str
 
 @app.put("/documents/{filename}/rename")
-def rename_doc(filename: str, request: RenameRequest):
-    renamed = rename_document(filename, request.new_name)
+def rename_doc(filename: str, request: RenameRequest, x_user_id: str = Header("default")):
+    renamed = rename_document(filename, request.new_name, user_id=x_user_id)
     if not renamed:
         return {"success": False, "message": "Document not found."}
     
     # Also rename the physical file if it exists
-    old_path = os.path.join(UPLOAD_FOLDER, filename)
-    new_path = os.path.join(UPLOAD_FOLDER, request.new_name)
+    old_path = os.path.join(UPLOAD_FOLDER, f"{x_user_id}_{filename}")
+    new_path = os.path.join(UPLOAD_FOLDER, f"{x_user_id}_{request.new_name}")
     if os.path.exists(old_path) and not os.path.exists(new_path):
         os.rename(old_path, new_path)
         
     return {"success": True, "renamed_to": request.new_name}
 
 @app.post("/documents/{filename}/reindex")
-def reindex_doc(filename: str):
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
+def reindex_doc(filename: str, x_user_id: str = Header("default")):
+    file_path = os.path.join(UPLOAD_FOLDER, f"{x_user_id}_{filename}")
     if not os.path.exists(file_path):
         return {"success": False, "message": "Original PDF not found on server."}
         
-    delete_document(filename)
+    delete_document(filename, user_id=x_user_id)
     text = extract_text_from_pdf(file_path)
     chunks = create_chunks(text, source=filename)
     for chunk in chunks:
         chunk["embedding"] = get_embedding(chunk["text"])
-    add_chunks(chunks)
+    add_chunks(chunks, user_id=x_user_id)
     
     return {"success": True, "new_chunks": len(chunks)}
 
 @app.get("/documents/{filename}/preview")
-def preview_doc(filename: str):
-    data = collection.get(where={"source": filename}, limit=1)
+def preview_doc(filename: str, x_user_id: str = Header("default")):
+    data = collection.get(where={"$and": [{"source": filename}, {"user_id": x_user_id}]}, limit=1)
     if len(data["documents"]) > 0:
         return {"success": True, "preview": data["documents"][0][:500] + "..."}
     return {"success": False, "message": "No content found."}
 
 @app.post("/clear-chat")
-def clear_chat(session_id: str = "default"):
+def clear_chat(session_id: str = "default", x_user_id: str = Header("default")):
 
     clear_history(
-        session_id
+        f"{x_user_id}_{session_id}"
     )
 
     return {
@@ -671,13 +673,13 @@ def get_sessions():
     return {"sessions": get_all_sessions()}
 
 @app.get("/chat/history")
-def get_chat_history(session_id: str = "default"):
+def get_chat_history(session_id: str = "default", x_user_id: str = Header("default")):
     from chat_memory import get_all_history
-    return {"history": get_all_history(session_id)}
+    return {"history": get_all_history(f"{x_user_id}_{session_id}")}
 
 @app.get("/analytics")
-def analytics_endpoint():
-    stats = get_document_stats()
+def analytics_endpoint(x_user_id: str = Header("default")):
+    stats = get_document_stats(user_id=x_user_id)
     total_docs = len(stats)
     total_chunks = sum(stats.values())
     
