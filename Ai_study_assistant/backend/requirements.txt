@@ -9,3 +9,6 @@ groq
 python-dotenv
 fastembed
 rank-bm25
+reportlab
+numpy
+requests
