@@ -80,14 +80,34 @@ def clear_history(session_id):
     conn.commit()
     conn.close()
 
-def get_all_sessions():
-    """Returns a list of all unique session IDs."""
+def get_all_sessions(user_id):
+    """Returns a list of all unique session IDs with their titles."""
     conn = _get_connection()
     c = conn.cursor()
-    c.execute("SELECT DISTINCT session_id FROM chats")
+    prefix = f"{user_id}_"
+    c.execute("SELECT DISTINCT session_id FROM chats WHERE session_id LIKE ?", (prefix + '%',))
     rows = c.fetchall()
+    
+    sessions_data = []
+    for row in rows:
+        full_session_id = row[0]
+        
+        # Get the first user message for this session
+        c.execute("SELECT content FROM chats WHERE session_id = ? AND role = 'user' ORDER BY id ASC LIMIT 1", (full_session_id,))
+        msg_row = c.fetchone()
+        
+        display_name = "New Chat"
+        if msg_row:
+            text = msg_row[0].strip()
+            display_name = text[:30] + ("..." if len(text) > 30 else "")
+            
+        sessions_data.append({
+            "id": full_session_id.replace(prefix, "", 1),
+            "title": display_name
+        })
+        
     conn.close()
-    return [row[0] for row in rows]
+    return sessions_data
 
 def get_analytics():
     conn = _get_connection()

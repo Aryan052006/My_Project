@@ -668,9 +668,9 @@ def clear_chat(session_id: str = "default", x_user_id: str = Header("default")):
     }
 
 @app.get("/sessions")
-def get_sessions():
+def get_sessions(x_user_id: str = Header("default")):
     from chat_memory import get_all_sessions
-    return {"sessions": get_all_sessions()}
+    return {"sessions": get_all_sessions(x_user_id)}
 
 @app.get("/chat/history")
 def get_chat_history(session_id: str = "default", x_user_id: str = Header("default")):

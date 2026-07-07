@@ -25,7 +25,7 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   
-  const [sessions, setSessions] = useState<string[]>([]);
+  const [sessions, setSessions] = useState<{id: string, title: string}[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>("default");
   
   const [availableModels, setAvailableModels] = useState<string[]>(['qwen3:1.7b']);
@@ -168,8 +168,8 @@ export default function Chat() {
         return newMessages;
       });
       
-      if (!sessions.includes(currentSessionId)) {
-        setSessions(prev => [...prev, currentSessionId]);
+      if (!sessions.some(s => s.id === currentSessionId)) {
+        setSessions(prev => [...prev, { id: currentSessionId, title: question.trim().substring(0, 30) + "..." }]);
       }
     } catch (error) {
       console.error(error);
@@ -213,15 +213,15 @@ export default function Chat() {
           )}
           {sessions.map((s) => (
             <button
-              key={s}
-              onClick={() => fetchHistory(s)}
+              key={s.id}
+              onClick={() => fetchHistory(s.id)}
               className={`text-left px-3 py-2.5 rounded-xl truncate text-sm transition-all duration-200 ${
-                s === currentSessionId
+                s.id === currentSessionId
                   ? "bg-[#2563EB]/10 text-[#2563EB] font-semibold border border-[#2563EB]/20"
                   : "text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#1E293B] border border-transparent"
               }`}
             >
-              {s.replace("chat_", "Chat ")}
+              {s.title || s.id.replace("chat_", "Chat ")}
             </button>
           ))}
         </div>
