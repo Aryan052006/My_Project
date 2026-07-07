@@ -20,6 +20,15 @@ def init_db():
         )
     ''')
     conn.commit()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS performance_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            endpoint TEXT,
+            latency_ms REAL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
     conn.close()
 
 # Initialize DB on load
@@ -79,3 +88,35 @@ def get_all_sessions():
     rows = c.fetchall()
     conn.close()
     return [row[0] for row in rows]
+
+def get_analytics():
+    conn = _get_connection()
+    c = conn.cursor()
+    
+    c.execute("SELECT COUNT(*) FROM chats WHERE role = 'user'")
+    total_questions = c.fetchone()[0] or 0
+    
+    c.execute("SELECT COUNT(DISTINCT session_id) FROM chats")
+    total_sessions = c.fetchone()[0] or 0
+    
+    c.execute("SELECT AVG(latency_ms) FROM performance_logs WHERE endpoint = 'retrieval'")
+    avg_retrieval = c.fetchone()[0] or 0
+    
+    c.execute("SELECT AVG(latency_ms) FROM performance_logs WHERE endpoint = 'generation'")
+    avg_generation = c.fetchone()[0] or 0
+    
+    conn.close()
+    
+    return {
+        "total_questions": total_questions,
+        "total_sessions": total_sessions,
+        "avg_retrieval_ms": round(avg_retrieval, 2),
+        "avg_generation_ms": round(avg_generation, 2)
+    }
+
+def log_performance(endpoint, latency_ms):
+    conn = _get_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO performance_logs (endpoint, latency_ms) VALUES (?, ?)", (endpoint, latency_ms))
+    conn.commit()
+    conn.close()

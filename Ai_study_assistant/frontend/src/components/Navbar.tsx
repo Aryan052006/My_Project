@@ -1,16 +1,20 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, MessageSquare, BookOpen, Calculator, LibraryBig, Brain, BarChart, Settings, Database, LogOut, User as UserIcon } from "lucide-react";
+import { LayoutDashboard, MessageSquare, BookOpen, Calculator, LibraryBig, Brain, BarChart, Settings, Database, LogOut, User as UserIcon, Zap } from "lucide-react";
+import { UserButton, useUser } from "@clerk/clerk-react";
 
 export default function Navbar() {
   const location = useLocation();
+  const { user } = useUser();
 
   const navItems = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
     { name: "Chat Assistant", path: "/chat", icon: MessageSquare },
     { name: "Knowledge Base", path: "/documents", icon: LibraryBig },
     { name: "Question Solver", path: "/solver", icon: Calculator },
-    { name: "Analytics", path: "#", icon: BarChart },
-    { name: "Settings", path: "#", icon: Settings },
+    { name: "AI Tutor", path: "/tutor", icon: Calculator },
+    { name: "Smart Revision", path: "/revision", icon: Zap },
+    { name: "Analytics", path: "/analytics", icon: BarChart },
+    { name: "Settings", path: "/settings", icon: Settings },
   ];
 
   return (
@@ -59,19 +63,20 @@ export default function Navbar() {
           <span>v2.1.0</span>
         </div>
         
-        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#111827] border border-[#1F2937] hover:border-[#374151] transition-colors cursor-pointer group mt-2">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-full bg-[#1E293B] border border-[#374151] flex items-center justify-center text-[#F8FAFC] shrink-0">
-              <UserIcon size={16} />
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-semibold text-[#F8FAFC] truncate">Admin User</p>
-              <p className="text-xs text-[#22C55E] font-medium truncate">Pro Plan</p>
-            </div>
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#111827] border border-[#1F2937] hover:border-[#374151] transition-colors mt-2">
+          <div className="shrink-0 flex items-center justify-center pt-1">
+            <UserButton 
+              appearance={{
+                elements: {
+                  userButtonAvatarBox: "w-9 h-9 border border-[#374151] shadow-sm"
+                }
+              }}
+            />
           </div>
-          <button className="text-[#64748B] hover:text-[#EF4444] transition-colors p-1">
-            <LogOut size={16} />
-          </button>
+          <div className="flex-1 overflow-hidden">
+            <p className="text-sm font-semibold text-[#F8FAFC] truncate">{user?.fullName || "Student"}</p>
+            <p className="text-[10px] text-[#94A3B8] font-medium truncate">{user?.primaryEmailAddress?.emailAddress || "AI Study Assistant"}</p>
+          </div>
         </div>
       </div>
     </aside>

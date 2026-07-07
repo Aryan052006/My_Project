@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 import ollama
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+import json
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import time
@@ -12,27 +13,29 @@ from vector_store import (
     total_chunks,
     get_document_stats,
     document_exists,
-    delete_document
+    delete_document,
+    rename_document,
+    collection
 )
 from chunking import create_chunks
 from embeddings import get_embedding
 from semantic_search import find_top_k_chunks
-from rag import generate_answer
+from rag import generate_answer, generate_answer_stream, generate_followup_questions
 from answer_sheet_service import generate_answer_sheet
 from chat_memory import (
     add_message,
     get_history,
-    clear_history
+    clear_history,
+    log_performance,
+    get_analytics
 )
 from query_rewriter import rewrite_question
+from question_parser import extract_marks
+from settings_manager import load_settings, save_settings
 
 app = FastAPI()
 
-# Retrieval Configuration
-TOP_K = 5
-
-# Minimum similarity threshold
-MIN_SIMILARITY = 0.45
+# Retrieval configurations are now dynamic from settings_manager
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,6 +52,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 class ChatRequest(BaseModel):
     question: str
     session_id: str = "default"
+    model: str = "qwen3:1.7b"
 
 
 @app.get("/")
@@ -100,15 +104,18 @@ def chat(request: ChatRequest):
             request.question
         )
 
+        requested_marks = extract_marks(request.question)
+        print(f"\nExtracted Marks: {requested_marks}")
+
         # =============================
         # Retrieval
         # =============================
-
+        settings = load_settings()
         retrieval_start = time.time()
 
         results = find_top_k_chunks(
             rewritten_question,
-            k=TOP_K
+            k=settings.get("top_k", 5)
         )
 
         retrieval_end = time.time()
@@ -129,13 +136,9 @@ def chat(request: ChatRequest):
         )
 
         filtered_results = [
-
             result
-
             for result in results
-
-            if result["score"] >= MIN_SIMILARITY
-
+            if result["score"] >= settings.get("min_similarity", 0.45)
         ]
 
         if len(filtered_results) == 0:
@@ -201,7 +204,9 @@ def chat(request: ChatRequest):
         answer = generate_answer(
             question=request.question,
             contexts=contexts,
-            history=history
+            history=history,
+            marks=requested_marks,
+            model=request.model
         )
 
         generation_end = time.time()
@@ -281,7 +286,85 @@ def chat(request: ChatRequest):
             "error": str(e)
 
         }
+        
+@app.post("/chat-stream")
+async def chat_stream_endpoint(request: ChatRequest):
+    session_id = request.session_id
+
+    if total_chunks() == 0:
+        async def err_gen():
+            yield json.dumps({"type": "error", "message": "No PDF uploaded."}) + "\n"
+        return StreamingResponse(err_gen(), media_type="application/x-ndjson")
+
+    history = get_history(session_id)
+    rewritten_question = rewrite_question(request.question, history)
+    add_message(session_id, "user", request.question)
+    requested_marks = extract_marks(request.question)
+
+    settings = load_settings()
+    retrieval_start = time.time()
+    results = find_top_k_chunks(rewritten_question, k=settings.get("top_k", 5))
+    retrieval_end = time.time()
+    log_performance('retrieval', (retrieval_end - retrieval_start) * 1000)
+
+    filtered_results = [r for r in results if r["score"] >= settings.get("min_similarity", 0.45)]
     
+    if len(filtered_results) == 0:
+        async def not_found_gen():
+            yield json.dumps({
+                "type": "metadata",
+                "sources": [],
+                "confidence": 0,
+                "success": True
+            }) + "\n"
+            msg = "Information not found in study material."
+            yield json.dumps({"type": "text", "content": msg}) + "\n"
+            add_message(session_id, "assistant", msg)
+        return StreamingResponse(not_found_gen(), media_type="application/x-ndjson")
+
+    contexts = [r["chunk"]["text"] for r in filtered_results]
+    
+    # Calculate average confidence of top results (normalized score was 0.0 to 1.0)
+    avg_confidence = int(sum(r["score"] for r in filtered_results) / len(filtered_results) * 100)
+
+    sources = [{
+        "pdf": r["chunk"]["source"],
+        "chunk_id": r["chunk"]["id"],
+        "similarity": round(r["score"], 4),
+        "preview": r["chunk"]["text"][:150]
+    } for r in filtered_results]
+
+    updated_history = get_history(session_id)
+
+    async def event_generator():
+        # Yield metadata first (sources and confidence)
+        yield json.dumps({
+            "type": "metadata",
+            "sources": sources,
+            "confidence": avg_confidence,
+            "success": True
+        }) + "\n"
+
+        full_answer = ""
+        generation_start = time.time()
+        # Yield text chunks
+        for text_chunk in generate_answer_stream(request.question, contexts, updated_history, requested_marks, request.model):
+            full_answer += text_chunk
+            yield json.dumps({"type": "text", "content": text_chunk}) + "\n"
+        
+        generation_end = time.time()
+        log_performance('generation', (generation_end - generation_start) * 1000)
+
+        # Generate and yield followups
+        followups = generate_followup_questions(full_answer, request.model)
+        if followups:
+            yield json.dumps({"type": "followups", "content": followups}) + "\n"
+
+        # Save to DB
+        add_message(session_id, "assistant", full_answer)
+
+    return StreamingResponse(event_generator(), media_type="application/x-ndjson")
+
 @app.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
 
@@ -376,50 +459,137 @@ def documents():
 
     }
 
-@app.post("/generate-answer-sheet")
-async def generate_sheet(
-    file: UploadFile = File(...)
-):
+from question_extractor import extract_questions
 
+@app.post("/extract-questions")
+async def extract_questions_endpoint(file: UploadFile = File(...)):
     try:
-
-        file_path = os.path.join(
-            UPLOAD_FOLDER,
-            file.filename
-        )
-
+        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
-
-        total_questions = generate_answer_sheet(
-            file_path
-        )
-
-        return {
-            "success": True,
-            "questions_found": total_questions,
-            "pdf": "generated_answers.pdf"
-        }
-
+        
+        text = extract_text_from_pdf(file_path)
+        questions = extract_questions(text)
+        
+        parsed = []
+        for i, q in enumerate(questions):
+            marks = extract_marks(q)
+            parsed.append({
+                "id": i,
+                "text": q,
+                "marks": marks
+            })
+            
+        return {"success": True, "questions": parsed, "filename": file.filename}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
 
-        return {
-            "success": False,
-            "error": str(e)
-        }
+class GenerateAnswerRequest(BaseModel):
+    question: str
+    marks: int
 
+@app.post("/generate-individual-answer")
+def generate_individual_answer(req: GenerateAnswerRequest):
+    try:
+        from answer_generator import answer_question
+        ans = answer_question(req.question, req.marks)
+        return {"success": True, "answer": ans}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
-@app.get("/download-answer-sheet")
-def download_answer_sheet():
+class ExportAnswersRequest(BaseModel):
+    qa_pairs: list
+    format: str
 
-    pdf_path = "generated_answers.pdf"
+@app.post("/export-answers")
+def export_answers(req: ExportAnswersRequest):
+    try:
+        filename = f"generated_answers.{req.format}"
+        if req.format == "pdf":
+            from pdf_generator import generate_pdf
+            questions = [p["question"] for p in req.qa_pairs]
+            answers = [p["answer"] for p in req.qa_pairs]
+            generate_pdf(questions, answers, filename=filename)
+        elif req.format == "docx":
+            from docx import Document
+            doc = Document()
+            doc.add_heading("Generated Answers", 0)
+            for i, p in enumerate(req.qa_pairs):
+                doc.add_heading(f"Q{i+1}: {p['question']}", level=1)
+                doc.add_paragraph(p['answer'])
+            doc.save(filename)
+        elif req.format == "md":
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write("# Generated Answers\n\n")
+                for i, p in enumerate(req.qa_pairs):
+                    f.write(f"### Q{i+1}: {p['question']}\n\n")
+                    f.write(f"{p['answer']}\n\n---\n\n")
+        else:
+            return {"success": False, "error": "Unsupported format"}
+            
+        return {"success": True, "download_url": f"http://127.0.0.1:8000/download-file?file={filename}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
-    return FileResponse(
-        path=pdf_path,
-        filename="generated_answers.pdf",
-        media_type="application/pdf"
-    )
+class TutorRequest(BaseModel):
+    topic: str
+    num_questions: int = 5
+    difficulty: str = "Medium"
+    taxonomy: str = "Understanding"
+
+@app.post("/tutor/summary")
+def tutor_summary(req: TutorRequest):
+    try:
+        from tutor import generate_summary
+        summary = generate_summary(req.topic, req.difficulty, req.taxonomy)
+        return {"success": True, "summary": summary}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/tutor/quiz")
+def tutor_quiz(req: TutorRequest):
+    try:
+        from tutor import generate_quiz
+        quiz = generate_quiz(req.topic, req.num_questions, req.difficulty, req.taxonomy)
+        if isinstance(quiz, dict) and "error" in quiz:
+            return {"success": False, "error": quiz["error"]}
+        return {"success": True, "quiz": quiz}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+class RevisionRequest(BaseModel):
+    topic: str
+    num_cards: int = 10
+
+@app.post("/revision/flashcards")
+def revision_flashcards(req: RevisionRequest):
+    try:
+        from revision import generate_flashcards
+        cards = generate_flashcards(req.topic, req.num_cards)
+        if isinstance(cards, dict) and "error" in cards:
+            return {"success": False, "error": cards["error"]}
+        return {"success": True, "flashcards": cards}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/revision/cheatsheet")
+def revision_cheatsheet(req: RevisionRequest):
+    try:
+        from revision import generate_cheat_sheet
+        sheet = generate_cheat_sheet(req.topic)
+        return {"success": True, "cheatsheet": sheet}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/download-file")
+def download_file(file: str):
+    import os
+    if os.path.exists(file):
+        return FileResponse(path=file, filename=file)
+    return {"success": False, "error": "File not found"}
 
 @app.delete(
     "/documents/{filename}"
@@ -444,6 +614,45 @@ def remove_document(
         "deleted": filename
     }
 
+class RenameRequest(BaseModel):
+    new_name: str
+
+@app.put("/documents/{filename}/rename")
+def rename_doc(filename: str, request: RenameRequest):
+    renamed = rename_document(filename, request.new_name)
+    if not renamed:
+        return {"success": False, "message": "Document not found."}
+    
+    # Also rename the physical file if it exists
+    old_path = os.path.join(UPLOAD_FOLDER, filename)
+    new_path = os.path.join(UPLOAD_FOLDER, request.new_name)
+    if os.path.exists(old_path) and not os.path.exists(new_path):
+        os.rename(old_path, new_path)
+        
+    return {"success": True, "renamed_to": request.new_name}
+
+@app.post("/documents/{filename}/reindex")
+def reindex_doc(filename: str):
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    if not os.path.exists(file_path):
+        return {"success": False, "message": "Original PDF not found on server."}
+        
+    delete_document(filename)
+    text = extract_text_from_pdf(file_path)
+    chunks = create_chunks(text, source=filename)
+    for chunk in chunks:
+        chunk["embedding"] = get_embedding(chunk["text"])
+    add_chunks(chunks)
+    
+    return {"success": True, "new_chunks": len(chunks)}
+
+@app.get("/documents/{filename}/preview")
+def preview_doc(filename: str):
+    data = collection.get(where={"source": filename}, limit=1)
+    if len(data["documents"]) > 0:
+        return {"success": True, "preview": data["documents"][0][:500] + "..."}
+    return {"success": False, "message": "No content found."}
+
 @app.post("/clear-chat")
 def clear_chat(session_id: str = "default"):
 
@@ -464,4 +673,52 @@ def get_sessions():
 @app.get("/chat/history")
 def get_chat_history(session_id: str = "default"):
     from chat_memory import get_all_history
-    return {"history": get_all_history(session_id)}
+    return {"history": get_all_history(session_id)}
+
+@app.get("/analytics")
+def analytics_endpoint():
+    stats = get_document_stats()
+    total_docs = len(stats)
+    total_chunks = sum(stats.values())
+    
+    db_analytics = get_analytics()
+    
+    return {
+        "success": True,
+        "total_documents": total_docs,
+        "total_chunks": total_chunks,
+        "total_questions": db_analytics["total_questions"],
+        "total_sessions": db_analytics["total_sessions"],
+        "avg_retrieval_ms": db_analytics["avg_retrieval_ms"],
+        "avg_generation_ms": db_analytics["avg_generation_ms"]
+    }
+
+@app.get("/models")
+def get_models():
+    try:
+        import requests
+        response = requests.get("http://localhost:11434/api/tags", timeout=2)
+        if response.status_code == 200:
+            models = [m["name"] for m in response.json().get("models", [])]
+            return {"models": models}
+    except Exception:
+        pass
+    return {"models": ["qwen3:1.7b", "llama3.2:latest", "mistral:latest", "gemma:latest"]}
+
+@app.get("/settings")
+def get_settings():
+    return {"success": True, "settings": load_settings()}
+
+class SettingsUpdate(BaseModel):
+    chunk_size: int
+    chunk_overlap: int
+    top_k: int
+    min_similarity: float
+    temperature: float
+    max_tokens: int
+
+@app.post("/settings")
+def update_settings(request: SettingsUpdate):
+    settings = request.dict()
+    save_settings(settings)
+    return {"success": True, "settings": settings}

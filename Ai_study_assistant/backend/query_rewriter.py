@@ -5,7 +5,7 @@ def rewrite_question(question, history):
 
     if not history:
 
-        return question
+        return [question]
 
     history_text = ""
 
@@ -25,13 +25,14 @@ def rewrite_question(question, history):
         )
 
     prompt = f"""Rewrite the following question into a standalone query. If the question uses vague words like 'it', 'they', 'this', 'that', 'same', or 'this topic', replace them with the main subject from the Conversation History.
+Then, generate 2 alternative variations of the rewritten question using synonyms or different phrasing to improve search recall.
 
 Conversation History:
 {history_text}
 
 Original Question: {question}
 
-Rewritten Question (only the question):"""
+Return exactly 3 lines, one for each variation (the rewritten query + 2 alternatives), with no numbers, bullets, or extra text."""
 
     response = ollama.chat(
 
@@ -47,7 +48,7 @@ Rewritten Question (only the question):"""
         think=False,
 
         options={
-            "temperature": 0
+            "temperature": 0.2
         }
 
     )
@@ -59,8 +60,9 @@ Rewritten Question (only the question):"""
         ""
     )
 
-    if rewritten == "":
+    lines = [line.strip() for line in rewritten.split('\n') if line.strip()]
+    
+    if not lines:
+        return [question]
 
-        return question
-
-    return rewritten
+    return lines[:3]

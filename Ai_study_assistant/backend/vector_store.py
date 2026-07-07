@@ -176,6 +176,35 @@ def delete_document(filename):
 
 
 # ===========================
+# Rename Document
+# ===========================
+
+def rename_document(old_filename, new_filename):
+    data = collection.get(
+        where={
+            "source": old_filename
+        }
+    )
+    
+    ids = data["ids"]
+    if len(ids) == 0:
+        return False
+        
+    new_metadatas = []
+    for metadata in data["metadatas"]:
+        new_metadatas.append({
+            "source": new_filename,
+            "chunk_id": metadata["chunk_id"]
+        })
+        
+    collection.update(
+        ids=ids,
+        metadatas=new_metadatas
+    )
+    return True
+
+
+# ===========================
 # Document Statistics
 # ===========================
 
@@ -220,3 +249,15 @@ def clear_database():
     collection = client.get_or_create_collection(
         name="study_material"
     )
+
+# ===========================
+# Fetch All Chunks (for BM25)
+# ===========================
+
+def get_all_chunks():
+
+    data = collection.get(
+        include=["documents", "metadatas"]
+    )
+    
+    return data

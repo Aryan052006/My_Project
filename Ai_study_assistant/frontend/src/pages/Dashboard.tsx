@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../services/api";
-import { FileText, Database, MessageSquare, FileCheck, Activity, Plus, Upload, PlayCircle, HelpCircle } from "lucide-react";
+import { FileText, Database, MessageSquare, FileCheck, Activity, Upload, PlayCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 type Document = {
@@ -117,7 +117,7 @@ export default function Dashboard() {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <FileText size={16} className="text-[#64748B] group-hover:text-[#2563EB] transition-colors" />
-                          <span className="font-medium text-[#F8FAFC]">{document.name}</span>
+                          <span className="font-medium text-[#F8FAFC] truncate max-w-[200px]">{document.name}</span>
                         </div>
                       </td>
                       <td className="py-4 px-6">
