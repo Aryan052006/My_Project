@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, MessageSquare, BookOpen, Calculator, LibraryBig, Brain, BarChart, Settings, Database, LogOut, User as UserIcon, Zap } from "lucide-react";
+import { LayoutDashboard, MessageSquare, Calculator, LibraryBig, Brain, BarChart, Settings, Database, Zap } from "lucide-react";
 import { UserButton, useUser } from "@clerk/clerk-react";
 
 export default function Navbar() {

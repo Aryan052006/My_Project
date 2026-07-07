@@ -8,7 +8,7 @@ type Document = {
 };
 
 export default function Documents() {
-  const [file, setFile] = useState<File | null>(null);
+  const [, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState({ text: "", type: "" });
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
