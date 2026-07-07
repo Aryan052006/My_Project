@@ -1,4 +1,3 @@
-import ollama
 
 
 def generate_answer(
@@ -133,33 +132,8 @@ Information not found in study material.
 7. Give only the final answer.
 
 """
-    response = ollama.chat(
-
-        model=model,
-
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-
-        options={
-            "temperature": settings.get("temperature", 0.0),
-            "num_predict": settings.get("max_tokens", 500)
-        },
-
-        think=False
-
-    )
-
-    answer = response.message.content.strip()
-
-    answer = answer.replace(
-        "</think>",
-        ""
-    )
-
+    from llm_client import get_chat_completion
+    answer = get_chat_completion(prompt, temperature=settings.get("temperature", 0.0), max_tokens=settings.get("max_tokens", 500))
     return answer
 
 
@@ -221,23 +195,11 @@ Information not found in study material.
 4. Always use the study material as the source of truth.
 5. Give only the final answer."""
 
-    response = ollama.chat(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        options={
-            "temperature": settings.get("temperature", 0.0),
-            "num_predict": settings.get("max_tokens", 500)
-        },
-        think=False,
-        stream=True
-    )
-
-    for chunk in response:
-        content = chunk.get('message', {}).get('content', '')
-        if content:
-            content = content.replace("</think>", "")
-            if content:
-                yield content
+    from llm_client import get_chat_completion_stream
+    stream = get_chat_completion_stream(prompt, temperature=settings.get("temperature", 0.0), max_tokens=settings.get("max_tokens", 500))
+    for chunk in stream:
+        if chunk:
+            yield chunk
 
 
 def generate_followup_questions(answer, model="qwen3:1.7b"):
@@ -251,13 +213,8 @@ Answer:
 {answer}"""
 
     try:
-        response = ollama.chat(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            think=False,
-            options={"temperature": 0.5, "num_predict": 100}
-        )
-        content = response.message.content.strip().replace("</think>", "")
+        from llm_client import get_chat_completion
+        content = get_chat_completion(prompt, temperature=0.5, max_tokens=150)
         lines = [line.strip().lstrip('-').strip() for line in content.split('\n') if line.strip()]
         return lines[:3]
     except Exception:

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-import ollama
+
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
 import json
@@ -530,7 +530,7 @@ def export_answers(req: ExportAnswersRequest):
         else:
             return {"success": False, "error": "Unsupported format"}
             
-        return {"success": True, "download_url": f"http://127.0.0.1:8000/download-file?file={filename}"}
+        return {"success": True, "download_url": f"/download-file?file={filename}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -695,15 +695,8 @@ def analytics_endpoint():
 
 @app.get("/models")
 def get_models():
-    try:
-        import requests
-        response = requests.get("http://localhost:11434/api/tags", timeout=2)
-        if response.status_code == 200:
-            models = [m["name"] for m in response.json().get("models", [])]
-            return {"models": models}
-    except Exception:
-        pass
-    return {"models": ["qwen3:1.7b", "llama3.2:latest", "mistral:latest", "gemma:latest"]}
+    # Since we moved to Groq, we return Groq supported models.
+    return {"models": ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768"]}
 
 @app.get("/settings")
 def get_settings():

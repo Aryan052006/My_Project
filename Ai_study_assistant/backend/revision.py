@@ -1,4 +1,3 @@
-import ollama
 import json
 from semantic_search import find_top_k_chunks
 from settings_manager import load_settings
@@ -30,17 +29,8 @@ Study Material:
 {context_text}
 """
 
-    response = ollama.chat(
-        model=settings.get("model", "qwen3:1.7b"),
-        messages=[{"role": "user", "content": prompt}],
-        options={
-            "temperature": 0.1,
-            "num_predict": 1000
-        },
-        think=False
-    )
-    
-    content = response['message']['content']
+    from llm_client import get_chat_completion
+    content = get_chat_completion(prompt, temperature=0.1, max_tokens=1024)
     
     try:
         if "```json" in content:
@@ -81,14 +71,6 @@ Study Material:
 {context_text}
 """
 
-    response = ollama.chat(
-        model=settings.get("model", "qwen3:1.7b"),
-        messages=[{"role": "user", "content": prompt}],
-        options={
-            "temperature": 0.2,
-            "num_predict": 1000
-        },
-        think=False
-    )
-    
-    return response['message']['content']
+    from llm_client import get_chat_completion
+    content = get_chat_completion(prompt, temperature=0.2, max_tokens=1024)
+    return content

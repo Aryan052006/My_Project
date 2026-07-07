@@ -1,4 +1,3 @@
-import ollama
 
 
 def rewrite_question(question, history):
@@ -34,31 +33,9 @@ Original Question: {question}
 
 Return exactly 3 lines, one for each variation (the rewritten query + 2 alternatives), with no numbers, bullets, or extra text."""
 
-    response = ollama.chat(
-
-        model="qwen3:1.7b",
-
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-
-        think=False,
-
-        options={
-            "temperature": 0.2
-        }
-
-    )
-
-    rewritten = response.message.content.strip()
-
-    rewritten = rewritten.replace(
-        "</think>",
-        ""
-    )
+    from llm_client import get_chat_completion
+    
+    rewritten = get_chat_completion(prompt, temperature=0.2)
 
     lines = [line.strip() for line in rewritten.split('\n') if line.strip()]
     

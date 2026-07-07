@@ -1,4 +1,3 @@
-import ollama
 import json
 from semantic_search import find_top_k_chunks
 from settings_manager import load_settings
@@ -30,17 +29,9 @@ Study Material:
 
 Summary and Diagram:"""
 
-    response = ollama.chat(
-        model=settings.get("model", "qwen3:1.7b"),
-        messages=[{"role": "user", "content": prompt}],
-        options={
-            "temperature": settings.get("temperature", 0.3),
-            "num_predict": 1000
-        },
-        think=False
-    )
-    
-    return response['message']['content']
+    from llm_client import get_chat_completion
+    response_text = get_chat_completion(prompt, temperature=settings.get("temperature", 0.3), max_tokens=1024)
+    return response_text
 
 
 def generate_quiz(topic: str, num_questions: int = 5, difficulty: str = "Medium", taxonomy: str = "Understanding"):
@@ -76,17 +67,8 @@ Study Material:
 {context_text}
 """
 
-    response = ollama.chat(
-        model=settings.get("model", "qwen3:1.7b"),
-        messages=[{"role": "user", "content": prompt}],
-        options={
-            "temperature": 0.1, # Keep it deterministic for JSON structure
-            "num_predict": 1000
-        },
-        think=False
-    )
-    
-    content = response['message']['content']
+    from llm_client import get_chat_completion
+    content = get_chat_completion(prompt, temperature=0.1, max_tokens=1024)
     
     # Try to parse the JSON output
     try:

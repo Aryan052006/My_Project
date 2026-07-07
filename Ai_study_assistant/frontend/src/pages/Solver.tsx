@@ -99,7 +99,7 @@ export default function Solver() {
       const res = await api.post("/export-answers", { qa_pairs: qaPairs, format });
       
       if (res.data.success) {
-        window.open(res.data.download_url, "_blank");
+        window.open(api.defaults.baseURL + res.data.download_url, "_blank");
         setMessage({ text: "", type: "" });
       } else {
         setMessage({ text: "Export failed.", type: "error" });
