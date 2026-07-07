@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../services/api";
 import { Send, Trash2, Plus, MessageSquare, Bot, User, FileText, Sparkles } from "lucide-react";
+import { useAuth } from "@clerk/clerk-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -19,6 +20,7 @@ type Message = {
 };
 
 export default function Chat() {
+  const { getToken, userId } = useAuth();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,9 +102,16 @@ export default function Chat() {
     setQuestion("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/chat-stream", {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+      const token = await getToken();
+      
+      const response = await fetch(`${apiUrl}/chat-stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(userId ? { "X-User-Id": userId } : {}),
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           question: userMessage.content,
           session_id: currentSessionId,
