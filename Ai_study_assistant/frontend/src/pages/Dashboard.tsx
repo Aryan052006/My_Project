@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../services/api";
-import { FileText, Database, MessageSquare, FileCheck, Activity, Upload, PlayCircle } from "lucide-react";
+import { FileText, Database, MessageSquare, Activity, Upload, PlayCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 type Document = {
