@@ -6,15 +6,54 @@ import remarkGfm from "remark-gfm";
 import mermaid from "mermaid";
 
 const Mermaid = ({ chart }: { chart: string }) => {
+  const [svg, setSvg] = useState<string>('');
+  const [hasError, setHasError] = useState(false);
+  // generate a unique ID for the render container
+  const id = "mermaid-svg-" + Math.random().toString(36).substring(2, 9);
+
   useEffect(() => {
-    mermaid.initialize({ startOnLoad: true, theme: "dark" });
-    try {
-      mermaid.contentLoaded();
-    } catch (e) {
-      console.error(e);
-    }
+    mermaid.initialize({ startOnLoad: false, theme: "dark" });
+    
+    const renderChart = async () => {
+      try {
+        // Attempt to auto-fix missing quotes around nodes to help the AI out
+        let safeChart = chart;
+        if (!safeChart.includes('["') && safeChart.includes('[')) {
+          safeChart = safeChart.replace(/\[(.*?)\]/g, '["$1"]');
+        }
+        if (!safeChart.includes('("') && safeChart.includes('(')) {
+          safeChart = safeChart.replace(/\((.*?)\)/g, '("$1")');
+        }
+
+        const { svg } = await mermaid.render(id, safeChart);
+        setSvg(svg);
+        setHasError(false);
+      } catch (e) {
+        console.error("Mermaid parsing error, falling back to text:", e);
+        setHasError(true);
+      }
+    };
+    
+    renderChart();
   }, [chart]);
-  return <div className="mermaid flex justify-center my-6 bg-[#0F172A]/80 p-6 rounded-xl border border-[#1F2937] shadow-inner overflow-x-auto">{chart}</div>;
+
+  if (hasError || !svg) {
+    return (
+      <div className="my-6 bg-[#0F172A] p-4 rounded-xl border border-red-500/30 overflow-x-auto shadow-inner">
+        <p className="text-xs text-red-400 mb-2 font-bold flex items-center gap-1.5">
+          <XCircle size={14} /> Failed to render diagram. Raw AI output:
+        </p>
+        <pre className="text-xs text-slate-300 font-mono whitespace-pre-wrap"><code>{chart}</code></pre>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="flex justify-center my-6 bg-[#0F172A]/80 p-6 rounded-xl border border-[#1F2937] shadow-inner overflow-x-auto"
+      dangerouslySetInnerHTML={{ __html: svg }} 
+    />
+  );
 };
 
 export default function AITutor() {
