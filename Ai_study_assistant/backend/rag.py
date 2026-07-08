@@ -21,7 +21,7 @@ def generate_answer(
 This is a {marks}-mark question.
 
 Instructions:
-- Answer in 50-60 words.
+- Answer in 30-50 words (2 to 3 lines).
 - {points_instruction}
 - Give a precise and direct answer.
 """
@@ -32,7 +32,7 @@ Instructions:
 This is a 3-mark question.
 
 Instructions:
-- Answer in approximately 100 words.
+- Answer in 60-90 words.
 - {points_instruction}
 - Provide a clear explanation with key details.
 """
@@ -43,20 +43,9 @@ Instructions:
 This is a {marks}-mark question.
 
 Instructions:
-- Answer in 130-140 words.
+- Answer in 150-200 words.
 - {points_instruction}
 - Provide a comprehensive explanation.
-"""
-        num_predict = 200
-
-    elif marks <= 8:
-        answer_style = f"""
-This is a {marks}-mark question.
-
-Instructions:
-- Answer in approximately 180 words.
-- {points_instruction}
-- Structure with a clear introduction and detailed explanation.
 """
         num_predict = 300
 
@@ -65,11 +54,11 @@ Instructions:
 This is a {marks}-mark question.
 
 Instructions:
-- Answer in 200-210 words.
+- Answer in 400-600 words.
 - {points_instruction}
 - Structure with an introduction, detailed explanation, and a brief conclusion if appropriate.
 """
-        num_predict = 350
+        num_predict = 800
 
     if history is None:
 
@@ -153,15 +142,13 @@ def generate_answer_stream(
         points_instruction = "Use bullet points as requested."
 
     if marks <= 2:
-        answer_style = f"This is a {marks}-mark question.\nInstructions:\n- Answer in 50-60 words.\n- {points_instruction}\n- Give a precise and direct answer."
+        answer_style = f"This is a {marks}-mark question.\nInstructions:\n- Answer in 30-50 words (2 to 3 lines).\n- {points_instruction}\n- Give a precise and direct answer."
     elif marks == 3:
-        answer_style = f"This is a 3-mark question.\nInstructions:\n- Answer in approximately 100 words.\n- {points_instruction}\n- Provide a clear explanation with key details."
+        answer_style = f"This is a 3-mark question.\nInstructions:\n- Answer in 60-90 words.\n- {points_instruction}\n- Provide a clear explanation with key details."
     elif marks <= 5:
-        answer_style = f"This is a {marks}-mark question.\nInstructions:\n- Answer in 130-140 words.\n- {points_instruction}\n- Provide a comprehensive explanation."
-    elif marks <= 8:
-        answer_style = f"This is a {marks}-mark question.\nInstructions:\n- Answer in approximately 180 words.\n- {points_instruction}\n- Structure with a clear introduction and detailed explanation."
+        answer_style = f"This is a {marks}-mark question.\nInstructions:\n- Answer in 150-200 words.\n- {points_instruction}\n- Provide a comprehensive explanation."
     else:
-        answer_style = f"This is a {marks}-mark question.\nInstructions:\n- Answer in 200-210 words.\n- {points_instruction}\n- Structure with an introduction, detailed explanation, and a brief conclusion if appropriate."
+        answer_style = f"This is a {marks}-mark question.\nInstructions:\n- Answer in 400-600 words.\n- {points_instruction}\n- Structure with an introduction, detailed explanation, and a brief conclusion if appropriate."
 
     if history is None:
         history = []
