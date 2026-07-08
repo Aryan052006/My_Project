@@ -28,8 +28,11 @@ CRITICAL MERMAID SYNTAX RULES:
 1. NEVER use parentheses `()`, brackets `[]`, or special characters inside node text WITHOUT wrapping the text in double quotes. 
    - BAD: `A[Concept (Detail)]`
    - GOOD: `A["Concept (Detail)"]`
-2. Do not use HTML tags in labels.
-3. Keep the diagram structure simple and valid.
+2. To add text to links, you MUST use the exact syntax `-->|Text|`. NEVER use `|Text|>` or `->`.
+   - BAD: `A |Text|> B`
+   - GOOD: `A -->|Text| B`
+3. Do not use HTML tags in labels.
+4. Keep the diagram structure simple and use `graph TD`.
 
 Study Material:
 {context_text}
