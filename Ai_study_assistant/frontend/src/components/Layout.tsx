@@ -48,9 +48,9 @@ export default function Layout({ children }: LayoutProps) {
   }, []);
 
   return (
-    <div className="min-h-screen text-[#F8FAFC] flex overflow-hidden selection:bg-[#2563EB]/30">
+    <div className="min-h-screen text-[#F8FAFC] flex flex-col md:flex-row overflow-hidden selection:bg-[#2563EB]/30">
       <Navbar />
-      <main className="flex-1 p-10 h-screen overflow-y-auto relative">
+      <main className="flex-1 p-4 md:p-10 h-[calc(100vh-80px)] md:h-screen overflow-y-auto relative w-full">
         <div className="max-w-[1200px] mx-auto animate-fade-in pb-20">
           {children}
         </div>

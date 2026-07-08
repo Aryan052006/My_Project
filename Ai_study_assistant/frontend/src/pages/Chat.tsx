@@ -189,10 +189,10 @@ export default function Chat() {
   };
 
   return (
-    <div className="h-[85vh] flex gap-6 max-w-[1200px] mx-auto animate-fade-in">
+    <div className="h-[85vh] md:h-auto md:min-h-[85vh] flex flex-col md:flex-row gap-4 md:gap-6 max-w-[1200px] mx-auto animate-fade-in">
       
       {/* Sidebar */}
-      <div className="w-[280px] panel p-4 flex flex-col border border-[#1F2937]">
+      <div className="w-full md:w-[280px] h-[150px] md:h-auto panel p-4 flex flex-col border border-[#1F2937] shrink-0">
         <div className="flex items-center justify-between mb-6 px-1">
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
             <MessageSquare size={16} className="text-[#2563EB]" />
@@ -228,7 +228,7 @@ export default function Chat() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col max-w-4xl panel border border-[#1F2937] overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-[500px] md:min-h-0 panel border border-[#1F2937] overflow-hidden">
         <div className="flex justify-between items-center border-b border-[#1F2937] p-6 bg-[#0F172A]/50 backdrop-blur-md">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-3">
