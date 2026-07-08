@@ -1,7 +1,7 @@
 import Navbar from "./Navbar";
 import { useEffect, useState, useRef } from "react";
 import { api } from "../services/api";
-import { FileText, CheckCircle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 
 type LayoutProps = {
   children: React.ReactNode;
