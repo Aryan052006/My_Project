@@ -54,15 +54,6 @@ export default function Navbar() {
       </nav>
       
       <div className="mt-auto pt-4 border-t border-[#1F2937] flex flex-col gap-1">
-        <div className="px-3 py-2 text-[#94A3B8] flex items-center justify-between text-xs font-medium">
-          <span className="flex items-center gap-2"><Database size={14} /> Storage Used</span>
-          <span className="text-[#F8FAFC]">2.4 GB</span>
-        </div>
-        <div className="px-3 py-2 text-[#64748B] flex items-center justify-between text-[10px] uppercase font-bold tracking-wider mb-2">
-          <span>Version</span>
-          <span>v2.1.0</span>
-        </div>
-        
         <div className="flex items-center gap-3 p-3 rounded-xl bg-[#111827] border border-[#1F2937] hover:border-[#374151] transition-colors mt-2">
           <div className="shrink-0 flex items-center justify-center pt-1">
             <UserButton 

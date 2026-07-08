@@ -685,7 +685,7 @@ def analytics_endpoint(x_user_id: str = Header("default")):
     total_docs = len(stats)
     total_chunks = sum(stats.values())
     
-    db_analytics = get_analytics()
+    db_analytics = get_analytics(user_id=x_user_id)
     
     return {
         "success": True,

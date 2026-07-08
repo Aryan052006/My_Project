@@ -109,14 +109,15 @@ def get_all_sessions(user_id):
     conn.close()
     return sessions_data
 
-def get_analytics():
+def get_analytics(user_id="default"):
     conn = _get_connection()
     c = conn.cursor()
+    prefix = f"{user_id}_"
     
-    c.execute("SELECT COUNT(*) FROM chats WHERE role = 'user'")
+    c.execute("SELECT COUNT(*) FROM chats WHERE role = 'user' AND session_id LIKE ?", (prefix + '%',))
     total_questions = c.fetchone()[0] or 0
     
-    c.execute("SELECT COUNT(DISTINCT session_id) FROM chats")
+    c.execute("SELECT COUNT(DISTINCT session_id) FROM chats WHERE session_id LIKE ?", (prefix + '%',))
     total_sessions = c.fetchone()[0] or 0
     
     c.execute("SELECT AVG(latency_ms) FROM performance_logs WHERE endpoint = 'retrieval'")

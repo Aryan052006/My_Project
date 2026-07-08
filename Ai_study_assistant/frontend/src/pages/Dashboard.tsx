@@ -14,14 +14,28 @@ type DocumentsResponse = {
   documents: Document[];
 };
 
+type AnalyticsResponse = {
+  success: boolean;
+  total_documents: number;
+  total_chunks: number;
+  total_questions: number;
+  total_sessions: number;
+};
+
 export default function Dashboard() {
   const [data, setData] = useState<DocumentsResponse | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
 
   useEffect(() => {
     api
       .get("/documents")
       .then((res) => setData(res.data))
       .catch((err) => console.error("API ERROR:", err));
+      
+    api
+      .get("/analytics")
+      .then((res) => setAnalytics(res.data))
+      .catch((err) => console.error("Analytics API ERROR:", err));
   }, []);
 
   const totalChunks = data
@@ -74,19 +88,19 @@ export default function Dashboard() {
             </div>
           </div>
           <p className="text-3xl font-bold text-white">
-            24
+            {analytics?.total_questions ?? 0}
           </p>
         </div>
 
         <div className="card p-6 flex flex-col justify-between group">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[#94A3B8] text-sm font-medium">Answer Sheets Generated</h2>
+            <h2 className="text-[#94A3B8] text-sm font-medium">Chat Sessions</h2>
             <div className="w-8 h-8 rounded-lg bg-[#22C55E]/10 flex items-center justify-center text-[#22C55E] group-hover:bg-[#22C55E] group-hover:text-white transition-colors">
-              <FileCheck size={16} />
+              <MessageSquare size={16} />
             </div>
           </div>
           <p className="text-3xl font-bold text-white">
-            3
+            {analytics?.total_sessions ?? 0}
           </p>
         </div>
       </div>
