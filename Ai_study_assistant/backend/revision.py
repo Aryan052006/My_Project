@@ -2,9 +2,9 @@ import json
 from semantic_search import find_top_k_chunks
 from settings_manager import load_settings
 
-def generate_flashcards(topic: str, num_cards: int = 10):
+def generate_flashcards(topic: str, num_cards: int = 10, user_id: str = "default"):
     settings = load_settings()
-    results = find_top_k_chunks(topic, k=settings.get("top_k", 5) + 3)
+    results = find_top_k_chunks(topic, k=settings.get("top_k", 5) + 3, user_id=user_id)
     filtered = [r["chunk"]["text"] for r in results if r["score"] >= settings.get("min_similarity", 0.45)]
     
     context_text = "\n\n".join(filtered)
@@ -46,9 +46,9 @@ Study Material:
         return {"error": "Failed to parse the generated flashcards. Please try again."}
 
 
-def generate_cheat_sheet(topic: str):
+def generate_cheat_sheet(topic: str, user_id: str = "default"):
     settings = load_settings()
-    results = find_top_k_chunks(topic, k=settings.get("top_k", 5) + 5)
+    results = find_top_k_chunks(topic, k=settings.get("top_k", 5) + 5, user_id=user_id)
     filtered = [r["chunk"]["text"] for r in results if r["score"] >= settings.get("min_similarity", 0.45)]
     
     context_text = "\n\n".join(filtered)

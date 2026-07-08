@@ -493,10 +493,10 @@ class GenerateAnswerRequest(BaseModel):
     marks: int
 
 @app.post("/generate-individual-answer")
-def generate_individual_answer(req: GenerateAnswerRequest):
+def generate_individual_answer(req: GenerateAnswerRequest, x_user_id: str = Header("default")):
     try:
         from answer_generator import answer_question
-        ans = answer_question(req.question, req.marks)
+        ans = answer_question(req.question, req.marks, user_id=x_user_id)
         return {"success": True, "answer": ans}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -506,9 +506,11 @@ class ExportAnswersRequest(BaseModel):
     format: str
 
 @app.post("/export-answers")
-def export_answers(req: ExportAnswersRequest):
+def export_answers(req: ExportAnswersRequest, x_user_id: str = Header("default")):
     try:
-        filename = f"generated_answers.{req.format}"
+        import os
+        os.makedirs("uploads", exist_ok=True)
+        filename = f"uploads/{x_user_id}_generated_answers.{req.format}"
         if req.format == "pdf":
             from pdf_generator import generate_pdf
             questions = [p["question"] for p in req.qa_pairs]
@@ -542,19 +544,19 @@ class TutorRequest(BaseModel):
     taxonomy: str = "Understanding"
 
 @app.post("/tutor/summary")
-def tutor_summary(req: TutorRequest):
+def tutor_summary(req: TutorRequest, x_user_id: str = Header("default")):
     try:
         from tutor import generate_summary
-        summary = generate_summary(req.topic, req.difficulty, req.taxonomy)
+        summary = generate_summary(req.topic, req.difficulty, req.taxonomy, user_id=x_user_id)
         return {"success": True, "summary": summary}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 @app.post("/tutor/quiz")
-def tutor_quiz(req: TutorRequest):
+def tutor_quiz(req: TutorRequest, x_user_id: str = Header("default")):
     try:
         from tutor import generate_quiz
-        quiz = generate_quiz(req.topic, req.num_questions, req.difficulty, req.taxonomy)
+        quiz = generate_quiz(req.topic, req.num_questions, req.difficulty, req.taxonomy, user_id=x_user_id)
         if isinstance(quiz, dict) and "error" in quiz:
             return {"success": False, "error": quiz["error"]}
         return {"success": True, "quiz": quiz}
@@ -566,10 +568,10 @@ class RevisionRequest(BaseModel):
     num_cards: int = 10
 
 @app.post("/revision/flashcards")
-def revision_flashcards(req: RevisionRequest):
+def revision_flashcards(req: RevisionRequest, x_user_id: str = Header("default")):
     try:
         from revision import generate_flashcards
-        cards = generate_flashcards(req.topic, req.num_cards)
+        cards = generate_flashcards(req.topic, req.num_cards, user_id=x_user_id)
         if isinstance(cards, dict) and "error" in cards:
             return {"success": False, "error": cards["error"]}
         return {"success": True, "flashcards": cards}
@@ -577,10 +579,10 @@ def revision_flashcards(req: RevisionRequest):
         return {"success": False, "error": str(e)}
 
 @app.post("/revision/cheatsheet")
-def revision_cheatsheet(req: RevisionRequest):
+def revision_cheatsheet(req: RevisionRequest, x_user_id: str = Header("default")):
     try:
         from revision import generate_cheat_sheet
-        sheet = generate_cheat_sheet(req.topic)
+        sheet = generate_cheat_sheet(req.topic, user_id=x_user_id)
         return {"success": True, "cheatsheet": sheet}
     except Exception as e:
         return {"success": False, "error": str(e)}

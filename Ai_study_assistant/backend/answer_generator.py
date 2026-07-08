@@ -5,14 +5,15 @@ from vector_store import total_chunks
 
 def answer_question(
     question,
-    marks=5
+    marks=5,
+    user_id="default"
 ):
     """
     Generates an answer for a single question
     using ChromaDB + RAG.
     """
 
-    if total_chunks() == 0:
+    if total_chunks(user_id=user_id) == 0:
 
         return (
             "No study material has been uploaded."
@@ -28,7 +29,8 @@ def answer_question(
 
     results = find_top_k_chunks(
         question,
-        k=k
+        k=k,
+        user_id=user_id
     )
 
     if len(results) == 0:

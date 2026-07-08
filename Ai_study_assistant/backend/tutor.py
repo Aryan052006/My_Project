@@ -2,10 +2,10 @@ import json
 from semantic_search import find_top_k_chunks
 from settings_manager import load_settings
 
-def generate_summary(topic: str, difficulty: str = "Medium", taxonomy: str = "Understanding"):
+def generate_summary(topic: str, difficulty: str = "Medium", taxonomy: str = "Understanding", user_id: str = "default"):
     settings = load_settings()
     # 1. Retrieve context
-    results = find_top_k_chunks(topic, k=settings.get("top_k", 5))
+    results = find_top_k_chunks(topic, k=settings.get("top_k", 5), user_id=user_id)
     filtered = [r["chunk"]["text"] for r in results if r["score"] >= settings.get("min_similarity", 0.45)]
     
     context_text = "\n\n".join(filtered)
@@ -34,9 +34,9 @@ Summary and Diagram:"""
     return response_text
 
 
-def generate_quiz(topic: str, num_questions: int = 5, difficulty: str = "Medium", taxonomy: str = "Understanding"):
+def generate_quiz(topic: str, num_questions: int = 5, difficulty: str = "Medium", taxonomy: str = "Understanding", user_id: str = "default"):
     settings = load_settings()
-    results = find_top_k_chunks(topic, k=settings.get("top_k", 5) + 3) # Fetch a bit more context for quizzes
+    results = find_top_k_chunks(topic, k=settings.get("top_k", 5) + 3, user_id=user_id) # Fetch a bit more context for quizzes
     filtered = [r["chunk"]["text"] for r in results if r["score"] >= settings.get("min_similarity", 0.45)]
     
     context_text = "\n\n".join(filtered)
