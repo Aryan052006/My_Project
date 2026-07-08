@@ -21,9 +21,11 @@ const Mermaid = ({ chart }: { chart: string }) => {
         if (!safeChart.includes('["') && safeChart.includes('[')) {
           safeChart = safeChart.replace(/\[(.*?)\]/g, '["$1"]');
         }
-        if (!safeChart.includes('("') && safeChart.includes('(')) {
-          safeChart = safeChart.replace(/\((.*?)\)/g, '("$1")');
-        }
+
+        // Mermaid.render often swallows errors and returns an error SVG. 
+        // We use mermaid.parse to strictly validate and catch errors first.
+        const isValid = await mermaid.parse(safeChart);
+        if (!isValid) throw new Error("Invalid mermaid syntax");
 
         const { svg } = await mermaid.render(id, safeChart);
         setSvg(svg);
