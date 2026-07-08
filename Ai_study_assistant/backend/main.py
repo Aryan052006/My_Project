@@ -366,8 +366,39 @@ async def chat_stream_endpoint(request: ChatRequest, x_user_id: str = Header("de
 
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
+from fastapi import BackgroundTasks
+from typing import Dict
+
+# Simple in-memory tracker for background uploads
+UPLOAD_STATUS: Dict[str, str] = {}
+
+def process_pdf_background(file_path: str, filename: str, x_user_id: str):
+    job_id = f"{x_user_id}_{filename}"
+    try:
+        UPLOAD_STATUS[job_id] = "processing"
+        
+        text = extract_text_from_pdf(file_path)
+        chunks = create_chunks(text, source=filename)
+        
+        for chunk in chunks:
+            chunk["embedding"] = get_embedding(chunk["text"])
+            
+        add_chunks(chunks, user_id=x_user_id)
+        
+        UPLOAD_STATUS[job_id] = "ready"
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        UPLOAD_STATUS[job_id] = "failed"
+
+@app.get("/upload-status")
+def get_upload_status(x_user_id: str = Header("default")):
+    user_prefix = f"{x_user_id}_"
+    statuses = {k.replace(user_prefix, ""): v for k, v in UPLOAD_STATUS.items() if k.startswith(user_prefix)}
+    return {"success": True, "statuses": statuses}
+
 @app.post("/upload-pdf")
-async def upload_pdf(file: UploadFile = File(...), x_user_id: str = Header("default")):
+async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(...), x_user_id: str = Header("default")):
 
     print("========== UPLOAD START ==========")
 
@@ -386,48 +417,25 @@ async def upload_pdf(file: UploadFile = File(...), x_user_id: str = Header("defa
             content = await file.read()
             f.write(content)
 
-        print("3")
-
-        text = extract_text_from_pdf(file_path)
-
-        print("4")
-
-        chunks = create_chunks(
-            text,
-            source=file.filename
-        )
-
-        print(f"Chunks created: {len(chunks)}")
-
-        print("5")
-
-        for chunk in chunks:
-            chunk["embedding"] = get_embedding(
-                chunk["text"]
-            )
-
-        print("6")
-
-        add_chunks(chunks, user_id=x_user_id)
-
-        print("7")
+        # Trigger background task
+        background_tasks.add_task(process_pdf_background, file_path, file.filename, x_user_id)
+        
+        # Mark as processing immediately so the frontend knows
+        UPLOAD_STATUS[f"{x_user_id}_{file.filename}"] = "processing"
 
         response = {
             "success": True,
             "filename": file.filename,
-            "new_chunks": len(chunks),
-            "total_chunks": total_chunks(user_id=x_user_id)
+            "message": "Processing in background"
         }
 
-        print(response)
-        print("========== UPLOAD END ==========")
-
+        print("========== UPLOAD QUEUED ==========")
         return response
 
     except Exception as e:
-
         import traceback
         traceback.print_exc()
+        return {"success": False, "error": str(e)}
 
         return {
             "success": False,

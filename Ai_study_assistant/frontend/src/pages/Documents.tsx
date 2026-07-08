@@ -12,6 +12,7 @@ export default function Documents() {
   const [message, setMessage] = useState({ text: "", type: "" });
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [processingDocs, setProcessingDocs] = useState<string[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,15 +29,46 @@ export default function Documents() {
     }
   };
 
+  const checkUploadStatus = async () => {
+    try {
+      const response = await api.get("/upload-status");
+      if (response.data.success) {
+        const statuses = response.data.statuses;
+        const currentlyProcessing = Object.keys(statuses).filter(k => statuses[k] === "processing");
+        const newlyReady = Object.keys(statuses).filter(k => statuses[k] === "ready");
+        
+        setProcessingDocs(prev => {
+            const newCompletions = newlyReady.filter(doc => prev.includes(doc));
+            if (newCompletions.length > 0) {
+               window.alert(`Success! Your document(s) have been processed and are ready to use: \n${newCompletions.join(', ')}`);
+               // Run loadDocuments outside of the state update
+               setTimeout(() => loadDocuments(), 0);
+            }
+            return currentlyProcessing;
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     startTransition(() => {
       void loadDocuments();
+      void checkUploadStatus();
     });
+    
+    // Poll status every 3 seconds
+    const interval = setInterval(() => {
+       checkUploadStatus();
+    }, 3000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const uploadFile = async (selectedFile: File) => {
     setUploading(true);
-    setMessage({ text: "Processing PDF and generating embeddings...", type: "info" });
+    setMessage({ text: "Uploading PDF to server...", type: "info" });
 
     try {
       const formData = new FormData();
@@ -44,16 +76,17 @@ export default function Documents() {
       
       const response = await api.post("/upload-pdf", formData);
 
-      setMessage({ text: `${response.data.filename} uploaded successfully`, type: "success" });
+      setMessage({ text: `${response.data.filename} is now processing in the background! You will be notified when it's ready.`, type: "success" });
       setFile(null);
+      setProcessingDocs(prev => [...prev, response.data.filename]);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
 
-      await loadDocuments();
+      await checkUploadStatus();
       
-      setTimeout(() => setMessage({ text: "", type: "" }), 5000);
+      setTimeout(() => setMessage({ text: "", type: "" }), 6000);
     } catch (error) {
       console.error(error);
       setMessage({ text: "Upload failed. Please try again.", type: "error" });
@@ -248,6 +281,28 @@ export default function Documents() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
+                {/* Processing Documents */}
+                {processingDocs.map((docName) => (
+                  <div key={`processing-${docName}`} className="card p-5 flex items-center justify-between group border-[#EAB308]/30 bg-[#EAB308]/5">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-12 h-12 rounded-xl bg-[#1E293B] border border-[#EAB308]/30 flex items-center justify-center shrink-0">
+                        <div className="w-5 h-5 rounded-full border-2 border-[#EAB308]/20 border-t-[#EAB308] animate-spin" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-white truncate text-sm" title={docName}>
+                          {docName}
+                        </h3>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-[10px] uppercase font-bold text-[#EAB308] flex items-center gap-1.5 bg-[#EAB308]/10 px-2 py-0.5 rounded-md border border-[#EAB308]/20">
+                            Processing PDF & Extracting Data...
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Ready Documents */}
                 {filteredDocs.map((doc) => (
                   <div 
                     key={doc.name} 
