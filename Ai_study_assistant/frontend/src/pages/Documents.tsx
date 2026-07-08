@@ -40,7 +40,6 @@ export default function Documents() {
         setProcessingDocs(prev => {
             const newCompletions = newlyReady.filter(doc => prev.includes(doc));
             if (newCompletions.length > 0) {
-               window.alert(`Success! Your document(s) have been processed and are ready to use: \n${newCompletions.join(', ')}`);
                // Run loadDocuments outside of the state update
                setTimeout(() => loadDocuments(), 0);
             }
