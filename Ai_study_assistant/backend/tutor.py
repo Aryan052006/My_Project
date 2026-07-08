@@ -24,6 +24,13 @@ Focus your explanation around the cognitive skill of {taxonomy} (e.g., if Analyz
 Use headings, bullet points, and bold text.
 At the end of your summary, you MUST include a Mermaid.js diagram (e.g., flowchart, mindmap) that visually represents the core concepts of the topic, wrapped in ```mermaid ... ``` tags.
 
+CRITICAL MERMAID SYNTAX RULES:
+1. NEVER use parentheses `()`, brackets `[]`, or special characters inside node text WITHOUT wrapping the text in double quotes. 
+   - BAD: `A[Concept (Detail)]`
+   - GOOD: `A["Concept (Detail)"]`
+2. Do not use HTML tags in labels.
+3. Keep the diagram structure simple and valid.
+
 Study Material:
 {context_text}
 
