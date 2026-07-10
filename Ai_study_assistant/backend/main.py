@@ -380,8 +380,20 @@ def process_pdf_background(file_path: str, filename: str, x_user_id: str):
         text = extract_text_from_pdf(file_path)
         chunks = create_chunks(text, source=filename)
         
-        for chunk in chunks:
-            chunk["embedding"] = get_embedding(chunk["text"])
+        # Batch embeddings to avoid rate limits and increase speed
+        from embeddings import get_embeddings_batch
+        texts_to_embed = [chunk["text"] for chunk in chunks]
+        
+        # Batch size of 90 is safe for both Cohere (96 max) and Gemini (100 max)
+        batch_size = 90
+        all_embeddings = []
+        for i in range(0, len(texts_to_embed), batch_size):
+            batch_texts = texts_to_embed[i:i + batch_size]
+            batch_embeddings = get_embeddings_batch(batch_texts)
+            all_embeddings.extend(batch_embeddings)
+            
+        for chunk, embedding in zip(chunks, all_embeddings):
+            chunk["embedding"] = embedding
             
         add_chunks(chunks, user_id=x_user_id)
         
