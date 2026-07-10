@@ -5,7 +5,7 @@ client = chromadb.PersistentClient(
 )
 
 collection = client.get_or_create_collection(
-    name="study_material"
+    name="study_material_v2"
 )
 
 
@@ -243,7 +243,7 @@ def clear_database(user_id="default"):
         pass
 
     collection = client.get_or_create_collection(
-        name="study_material"
+        name="study_material_v2"
     )
 
 # ===========================
