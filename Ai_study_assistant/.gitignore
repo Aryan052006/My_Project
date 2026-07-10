@@ -14,6 +14,7 @@ __pycache__/
 
 # Databases and user uploads
 backend/chroma_db/
+*.sqlite3
 backend/uploads/
 backend/*.pdf
 backend/*.docx
