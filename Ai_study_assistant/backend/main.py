@@ -15,7 +15,7 @@ from vector_store import (
     document_exists,
     delete_document,
     rename_document,
-    collection
+    get_document_preview
 )
 from chunking import create_chunks
 from embeddings import get_embedding
@@ -672,9 +672,9 @@ def reindex_doc(filename: str, x_user_id: str = Header("default")):
 
 @app.get("/documents/{filename}/preview")
 def preview_doc(filename: str, x_user_id: str = Header("default")):
-    data = collection.get(where={"$and": [{"source": filename}, {"user_id": x_user_id}]}, limit=1)
-    if len(data["documents"]) > 0:
-        return {"success": True, "preview": data["documents"][0][:500] + "..."}
+    preview_text = get_document_preview(filename, user_id=x_user_id)
+    if preview_text:
+        return {"success": True, "preview": preview_text}
     return {"success": False, "message": "No content found."}
 
 @app.post("/clear-chat")

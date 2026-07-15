@@ -208,6 +208,17 @@ def get_document_stats(user_id="default"):
 
 
 # ===========================
+# Preview Document
+# ===========================
+def get_document_preview(filename, user_id="default"):
+    data = get_all_chunks(user_id)
+    for meta, doc in zip(data["metadatas"], data["documents"]):
+        if meta.get("source") == filename:
+            return doc[:500] + "..."
+    return None
+
+
+# ===========================
 # Clear Database
 # ===========================
 def clear_database(user_id="default"):
