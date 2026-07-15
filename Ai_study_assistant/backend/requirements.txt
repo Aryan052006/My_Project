@@ -1,7 +1,6 @@
 fastapi
 uvicorn
 python-multipart
-chromadb
 pymupdf
 pydantic
 python-docx
@@ -11,3 +10,4 @@ rank-bm25
 reportlab
 numpy
 requests
+pinecone-client
