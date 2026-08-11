@@ -93,7 +93,7 @@ def add_chunks(chunks, user_id="default"):
 # ===========================
 # Search
 # ===========================
-def search(query_embedding, k=5, threshold=1.1, user_id="default"):
+def search(query_embedding, k=15, threshold=1.1, user_id="default"):
     # Chroma uses distance (lower is better), Pinecone uses similarity (higher is better).
     # If chroma threshold was 1.1, it meant similarity > 0.45.
     results = index.query(

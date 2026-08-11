@@ -5,8 +5,8 @@ SETTINGS_FILE = "settings.json"
 
 DEFAULT_SETTINGS = {
     "chunk_size": 1000,
-    "chunk_overlap": 200,
-    "top_k": 5,
+    "chunk_overlap": 250,
+    "top_k": 15,
     "min_similarity": 0.45,
     "temperature": 0.0,
     "max_tokens": 500
