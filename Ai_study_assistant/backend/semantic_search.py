@@ -73,7 +73,7 @@ def find_top_k_chunks(
         })
         
     combined_results.sort(key=lambda x: x["score"], reverse=True)
-    top_candidates = combined_results[:10]
+    top_candidates = combined_results[:30]  # Pass up to 30 candidates to re-ranker
     
     if len(top_candidates) == 0:
         return []
