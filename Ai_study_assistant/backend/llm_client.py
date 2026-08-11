@@ -11,7 +11,7 @@ if not GROQ_API_KEY:
 
 client = Groq(api_key=GROQ_API_KEY)
 
-DEFAULT_MODEL = "llama-3.1-8b-instant" 
+DEFAULT_MODEL = "llama-3.3-70b-versatile" 
 
 def get_chat_completion(prompt, temperature=0.3, max_tokens=1024):
     response = client.chat.completions.create(

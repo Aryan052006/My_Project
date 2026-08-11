@@ -78,9 +78,40 @@ def find_top_k_chunks(
     if len(top_candidates) == 0:
         return []
 
-    # 4. AI Re-ranking (Using Ollama to score relevance 0-10)
-    reranked_results = []
+    # 4. Cohere AI Re-ranking (If API key exists, otherwise fallback to LLM)
     main_query = queries[0]
+    import os
+    cohere_api_key = os.getenv("COHERE_API_KEY")
+    
+    if cohere_api_key:
+        import cohere
+        co = cohere.Client(cohere_api_key)
+        docs = [candidate['chunk']['text'] for candidate in top_candidates]
+        
+        try:
+            results = co.rerank(
+                model="rerank-english-v3.0",
+                query=main_query,
+                documents=docs,
+                top_n=k
+            )
+            
+            final_results = []
+            for rank_result in results.results:
+                idx = rank_result.index
+                relevance = rank_result.relevance_score
+                candidate = top_candidates[idx]
+                candidate["score"] = relevance
+                final_results.append(candidate)
+                
+            return final_results
+        except Exception as e:
+            print(f"Cohere Reranking error: {e}")
+            # Fall through to fallback
+            pass
+
+    # FALLBACK: LLM Re-ranking (Using Groq to score relevance 0-10)
+    reranked_results = []
     
     for candidate in top_candidates:
         prompt = f"""Score the relevance of the following document to the query on a scale of 0 to 10.

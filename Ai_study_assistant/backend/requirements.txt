@@ -11,3 +11,4 @@ reportlab
 numpy
 requests
 pinecone
+cohere
