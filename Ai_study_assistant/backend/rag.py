@@ -99,27 +99,15 @@ Current Question:
 {answer_style}
 
 IMPORTANT RULES
-
-1. NEVER use outside knowledge.
-
-2. NEVER guess.
-
-3. If the study material does not contain the answer, reply EXACTLY:
-
+1. You are an academic evaluator. Provide detailed, structured answers.
+2. If the context contains mathematical formulas, include them exactly as written.
+3. If the context mentions specific data structures (like Queues or Stacks), name them.
+4. Base your entire answer on the provided Study Material. Do not use outside knowledge.
+5. If the study material contains partial information, provide the partial information! Do not just say "Information not found".
+6. Only if the study material contains ABSOLUTELY NOTHING related to the question, reply EXACTLY:
 Information not found in study material.
-
-4. Use the conversation history only to understand references like:
-   - it
-   - they
-   - this concept
-   - previous topic
-
-5. NEVER answer from conversation history alone.
-
-6. Always use the study material as the source of truth.
-
-7. Give only the final answer.
-
+7. Use the conversation history only to understand references.
+8. Give only the final answer.
 """
     from llm_client import get_chat_completion
     answer = get_chat_completion(prompt, temperature=settings.get("temperature", 0.0), max_tokens=settings.get("max_tokens", 500))
@@ -175,14 +163,14 @@ Current Question:
 {answer_style}
 
 IMPORTANT RULES
-1. You are a strict academic evaluator. Do not provide vague summaries.
-2. If the context contains mathematical formulas (e.g., f(n) = g(n) + h(n)), you MUST include them exactly as written.
-3. If the context mentions specific data structures (like Queues or Stacks), you MUST name them.
-4. Always prioritize exact bulleted lists and examples from the text over general knowledge.
-5. NEVER use outside knowledge. NEVER guess.
-6. If the study material does not contain the answer, reply EXACTLY:
+1. You are an academic evaluator. Provide detailed, structured answers.
+2. If the context contains mathematical formulas (e.g., f(n) = g(n) + h(n)), include them exactly as written.
+3. If the context mentions specific data structures (like Queues or Stacks), name them.
+4. Always prioritize exact lists and examples from the text.
+5. Base your entire answer on the provided Study Material. Do not use outside knowledge.
+6. If the study material contains partial information, provide the partial information! Do not just say "Information not found".
+7. Only if the study material contains ABSOLUTELY NOTHING related to the question, reply EXACTLY:
 Information not found in study material.
-7. Always use the study material as the source of truth.
 8. Give only the final answer."""
 
     from llm_client import get_chat_completion_stream
