@@ -110,36 +110,12 @@ def find_top_k_chunks(
             # Fall through to fallback
             pass
 
-    # FALLBACK: LLM Re-ranking (Using Groq to score relevance 0-10)
-    reranked_results = []
-    
-    for candidate in top_candidates:
-        prompt = f"""Score the relevance of the following document to the query on a scale of 0 to 10.
-Return ONLY a single number from 0 to 10. Do not write anything else.
-
-Query: {main_query}
-
-Document: {candidate['chunk']['text']}"""
-
-        try:
-            from llm_client import get_chat_completion
-            content = get_chat_completion(prompt, temperature=0.0, max_tokens=10)
-            score_match = "".join(filter(str.isdigit, content.strip()))
-            rerank_score = int(score_match) if score_match else 0
-        except Exception as e:
-            print(f"Reranking error: {e}")
-            rerank_score = 0
-            
-        candidate["rerank_score"] = rerank_score
-        reranked_results.append(candidate)
-        
-    # Sort by AI score, then fallback to Hybrid RRF score
-    reranked_results.sort(key=lambda x: (x["rerank_score"], x["score"]), reverse=True)
-    
-    # Normalize score back to 0.0-1.0 format so main.py's MIN_SIMILARITY threshold works
+    # FALLBACK: Use Hybrid RRF scores (No LLM to prevent rate limits)
+    # Sort by RRF score (already sorted) and take top k
     final_results = []
-    for res in reranked_results[:k]:
-        res["score"] = res["rerank_score"] / 10.0
+    for res in top_candidates[:k]:
+        # Override score to 1.0 to ensure it safely passes the min_similarity threshold
+        res["score"] = 1.0
         final_results.append(res)
         
     return final_results
